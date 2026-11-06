@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "hono": "^4.13.16"
+  },
+  "devDependencies": {},
+  "module": "index.ts",
+  "name": "backend",
+  "peerDependencies": {},
+  "private": true,
+  "scripts": {
+    "start": "bun run index.ts"
+  },
+  "type": "module"
+}

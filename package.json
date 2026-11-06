@@ -1,0 +1,18 @@
+{
+  "devDependencies": {
+    "@biomejs/biome": "2.6.5",
+    "@types/bun": "latest"
+  },
+  "name": "labeling-platform-case",
+  "peerDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "private": true,
+  "scripts": {
+    "backend:start": "bun run --filter backend start"
+  },
+  "type": "module",
+  "workspaces": [
+    "backend"
+  ]
+}

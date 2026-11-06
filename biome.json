@@ -1,0 +1,124 @@
+{
+  "$schema": "node_modules/@biomejs/biome/configuration_schema.json",
+
+  "assist": {
+    "actions": {
+      "source": {
+        "noDuplicateClasses": "on",
+        "organizeImports": "on",
+        "preset": "recommended",
+        "useSortedAttributes": "on",
+        "useSortedInterfaceMembers": "on",
+        "useSortedKeys": "on",
+        "useSortedProperties": "on"
+      }
+    },
+    "enabled": true
+  },
+  "files": {
+    "ignoreUnknown": false
+  },
+
+  "formatter": {
+    "enabled": true,
+    "formatWithErrors": true,
+    "indentStyle": "space",
+    "lineEnding": "lf",
+    "lineWidth": 120,
+    "trailingNewline": true
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double"
+    },
+    "globals": ["Bun"]
+  },
+  "json": {
+    "formatter": {
+      "enabled": true,
+      "indentStyle": "space",
+      "lineEnding": "lf",
+      "lineWidth": 120
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "a11y": {
+        "noSvgWithoutTitle": "error",
+        "useValidAriaValues": "off"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "error",
+        "noExcessiveLinesPerFunction": {
+          "level": "warn",
+          "options": {
+            "maxLines": 150,
+            "skipBlankLines": true
+          }
+        },
+        "noForEach": "error",
+        "noStaticOnlyClass": "error",
+        "noThisInStatic": "error",
+        "noUselessCatch": "error",
+        "noUselessConstructor": "error",
+        "noUselessFragments": "error",
+        "noUselessReturn": "error",
+        "useArrowFunction": "error",
+        "useMaxParams": "error",
+        "useOptionalChain": "error",
+        "useSimplifiedLogicExpression": "error"
+      },
+      "correctness": {
+        "noComponentHookFactories": "off",
+        "noNestedComponentDefinitions": "error",
+        "noReactPropAssignments": "error",
+        "noUndeclaredVariables": "error",
+        "noUnusedVariables": "error",
+        "useExhaustiveDependencies": "off",
+        "useParseIntRadix": "off"
+      },
+      "nursery": {
+        "noFloatingPromises": "error",
+        "noMisusedPromises": "error",
+        "useExhaustiveSwitchCases": "error",
+        "useExplicitType": "error",
+        "useTailwindSortedClasses": "off"
+      },
+      "performance": {
+        "useTopLevelRegex": "error"
+      },
+      "preset": "recommended",
+      "style": {
+        "noNegationElse": "off",
+        "noNonNullAssertion": "error",
+        "noUnusedTemplateLiteral": "error",
+        "noUselessElse": "error",
+        "noYodaExpression": "error",
+        "useCollapsedElseIf": "error",
+        "useCollapsedIf": "error",
+        "useConst": "error",
+        "useImportType": "error",
+        "useSelfClosingElements": "error"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off",
+        "noConsole": "error",
+        "noEmptySource": "error",
+        "noEvolvingTypes": "error",
+        "noImplicitAnyLet": "error",
+        "noLeakedRender": "error",
+        "noShadow": "error",
+        "noShadowRestrictedNames": "error",
+        "noUnassignedVariables": "error",
+        "noUnnecessaryConditions": "warn",
+        "noUnusedExpressions": "error"
+      }
+    }
+  },
+  "vcs": {
+    "clientKind": "git",
+    "enabled": true,
+    "useIgnoreFile": true
+  }
+}
