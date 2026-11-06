@@ -1,12 +1,10 @@
 {
   "devDependencies": {
     "@biomejs/biome": "2.6.5",
-    "@types/bun": "latest"
-  },
-  "name": "labeling-platform-case",
-  "peerDependencies": {
+    "@types/bun": "latest",
     "typescript": "^7.0.2"
   },
+  "name": "labeling-platform-case",
   "private": true,
   "scripts": {
     "backend:start": "bun run --filter backend start"
