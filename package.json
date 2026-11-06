@@ -7,6 +7,7 @@
   "name": "labeling-platform-case",
   "private": true,
   "scripts": {
+    "backend:dev": "bun run --filter backend dev",
     "backend:start": "bun run --filter backend start"
   },
   "type": "module",

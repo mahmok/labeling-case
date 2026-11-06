@@ -1,12 +1,14 @@
 {
   "dependencies": {
-    "hono": "^4.13.16"
+    "hono": "^4.13.16",
+    "pino": "^10.4.0"
   },
   "devDependencies": {},
   "module": "index.ts",
   "name": "backend",
   "private": true,
   "scripts": {
+    "dev": "bun run --watch index.ts",
     "start": "bun run index.ts"
   },
   "type": "module"
