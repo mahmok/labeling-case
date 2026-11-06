@@ -1,13 +1,23 @@
 {
   "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "drizzle-orm": "^0.45.4",
     "hono": "^4.13.16",
+    "pg": "^8.23.1",
     "pino": "^10.4.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "drizzle-kit": "^0.31.11",
+    "tsx": "^4.23.15"
+  },
   "module": "index.ts",
   "name": "backend",
   "private": true,
   "scripts": {
+    "db:generate": "drizzle-kit generate --config=src/db/drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=src/db/drizzle.config.ts",
+    "db:push": "drizzle-kit push --config=src/db/drizzle.config.ts",
     "dev": "bun run --watch index.ts",
     "start": "bun run index.ts"
   },

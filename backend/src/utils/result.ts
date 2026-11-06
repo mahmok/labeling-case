@@ -51,3 +51,5 @@ export const retryUntilSuccess = async <T, E>(
 
   return lastResult;
 };
+
+export const asError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));

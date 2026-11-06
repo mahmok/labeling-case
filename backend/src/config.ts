@@ -2,6 +2,12 @@ export interface Config {
   api: {
     port: number;
   };
+  database: {
+    host: string;
+    user: string;
+    password: string;
+    dialect: "postgresql" | "sqlite";
+  };
   logger: {
     level: string;
   };
@@ -9,8 +15,15 @@ export interface Config {
 
 type Mapper<T> = (value: string) => T;
 
+const getEnvVar = (key: string): string | undefined => {
+  if (typeof Bun !== "undefined") {
+    return Bun.env[key];
+  }
+  return process.env[key];
+};
+
 const _getRequiredEnvVar = <T = string>(key: string, map?: Mapper<T>): T => {
-  const value = Bun.env[key];
+  const value = getEnvVar(key);
 
   if (!value?.trim()) {
     throw new Error(`${key} must be set`);
@@ -20,7 +33,7 @@ const _getRequiredEnvVar = <T = string>(key: string, map?: Mapper<T>): T => {
 };
 
 const getOptionalEnvVar = <T = string>(key: string, fallback: T, map?: Mapper<T>): T => {
-  const value = Bun.env[key];
+  const value = getEnvVar(key);
 
   if (!value?.trim()) {
     return fallback;
@@ -32,6 +45,12 @@ const getOptionalEnvVar = <T = string>(key: string, fallback: T, map?: Mapper<T>
 export const config: Config = {
   api: {
     port: getOptionalEnvVar("PORT", 3000, Number),
+  },
+  database: {
+    dialect: getOptionalEnvVar("DATABASE_DIALECT", "postgresql") as "postgresql" | "sqlite",
+    host: getOptionalEnvVar("DATABASE_HOST", "localhost"),
+    password: getOptionalEnvVar("DATABASE_PASS", "labeling"),
+    user: getOptionalEnvVar("DATABASE_USER", "labeling"),
   },
   logger: {
     level: getOptionalEnvVar("LOG_LEVEL", "debug"),

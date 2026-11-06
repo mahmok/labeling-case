@@ -1,0 +1,10 @@
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: labeling-case-db
+    environment:
+      POSTGRES_USER: labeling
+      POSTGRES_PASSWORD: labeling
+      POSTGRES_DB: labeling
+    ports:
+      - "5432:5432"
