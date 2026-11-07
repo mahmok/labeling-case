@@ -8,6 +8,7 @@ import { Page } from "../../lib/components/page.tsx";
 import { sortingToQuery, type tableFeatures, useServerTableState } from "../../lib/table-state.ts";
 import type { Job, JobListParams, JobSortKey, JobStatus, JobType } from "../api.tsx";
 import { useCreateJob, useJobs } from "../api.tsx";
+import { JobResultDialog } from "../components/job-result-dialog.tsx";
 
 const EMPTY_JOBS: Job[] = [];
 const INITIAL_SORTING: SortingState = [{ desc: true, id: "createdAt" }];
@@ -42,6 +43,7 @@ const columns = column.columns([
 export const JobsPage = (): JSX.Element => {
   const { pagination, paginationAtom, sorting, sortingAtom } = useServerTableState(INITIAL_SORTING);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [submitError, setSubmitError] = useState<string>();
   const createJobMutation = useCreateJob();
   const params = useMemo<JobListParams>(
@@ -75,6 +77,9 @@ export const JobsPage = (): JSX.Element => {
     }
   };
 
+  const showJobResult = (job: Job): void => setSelectedJob(job);
+  const closeJobResult = (): void => setSelectedJob(null);
+
   const openDialog = (): void => {
     createJobMutation.reset();
     setSubmitError(undefined);
@@ -96,7 +101,9 @@ export const JobsPage = (): JSX.Element => {
         hasNextPage={Boolean(pageResult?.isOk && pageResult.value.length > pagination.pageSize)}
         isFetching={query.isFetching}
         isPending={query.isPending}
+        onRowAction={showJobResult}
         paginationAtom={paginationAtom}
+        rowActionLabel="Info"
         sortingAtom={sortingAtom}
       />
 
@@ -118,6 +125,7 @@ export const JobsPage = (): JSX.Element => {
           </select>
         </fieldset>
       </FormModal>
+      <JobResultDialog job={selectedJob} onClose={closeJobResult} />
     </Page>
   );
 };
