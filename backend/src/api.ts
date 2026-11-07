@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { openAPIRouteHandler } from "hono-openapi";
 import type { ApplicationUseCases } from "./application.ts";
 import { createJobsApi } from "./jobs/api.ts";
@@ -8,6 +9,8 @@ import { createPrintsApi } from "./prints/api.ts";
 
 export const createApi = (useCases: ApplicationUseCases): Hono => {
   const api = new Hono();
+  // TODO: Remove later
+  api.use("*", cors());
   api.get("/health", (c) => c.json({ status: "running" }));
 
   const v1 = api.basePath("/api").basePath("/v1");
