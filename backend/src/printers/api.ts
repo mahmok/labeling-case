@@ -23,17 +23,12 @@ const PrinterResponseSchema = z.object({ data: PrinterSchema });
 const PrintersResponseSchema = z.object({ data: z.array(PrinterSchema) });
 const ErrorSchema = z.object({ error: z.object({ message: z.string() }) });
 const printerText = z.string().trim().min(1).max(255);
-const CreatePrinterSchema = z
+const UpdatePrinterSchema = z
   .object({
-    location: printerText,
-    model: printerText,
-    name: printerText,
-    nickname: printerText.optional(),
-    serialNumber: printerText,
+    location: printerText.optional(),
+    nickname: printerText.nullable().optional(),
+    serialNumber: printerText.optional(),
   })
-  .strict();
-const UpdatePrinterSchema = CreatePrinterSchema.extend({ nickname: printerText.nullable().optional() })
-  .partial()
   .strict()
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one printer field must be provided",
@@ -144,24 +139,6 @@ export const createPrintersApi = (useCases: PrinterUseCases): Hono => {
       tags: ["Printers"],
     }),
     async (c) => c.json({ data: unwrap(await useCases.getPrinter(c.req.valid("param").id)) }, 200),
-  );
-
-  app.post(
-    "/",
-    validator("json", CreatePrinterSchema, validationHook),
-    describeRoute({
-      responses: {
-        201: jsonResponse(PrinterResponseSchema, "Created printer"),
-        ...errorResponses,
-      },
-      summary: "Create a printer",
-      tags: ["Printers"],
-    }),
-    async (c) => {
-      const [printer] = unwrap(await useCases.createPrinter([c.req.valid("json")]));
-      if (!printer) throw new HTTPException(500, { message: "Internal server error" });
-      return c.json({ data: printer }, 201);
-    },
   );
 
   app.patch(

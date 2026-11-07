@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createApi } from "../../src/api.ts";
-import { createApplication } from "../../src/application.ts";
+import { type ApplicationUseCases, createApplication } from "../../src/application.ts";
 import { config } from "../../src/config.ts";
 import type { Printer } from "../../src/printers/domain.ts";
 import type { CreatePrinterInput } from "../../src/printers/repository/interface.ts";
@@ -15,26 +15,25 @@ let container: StartedPostgreSqlContainer | undefined;
 let server: ReturnType<typeof Bun.serve> | undefined;
 let closeDatabase: () => Promise<void> = async () => {};
 let origin: string;
+let useCases: ApplicationUseCases;
 
 const request = (path: string, init?: RequestInit): Promise<Response> => fetch(`${origin}${path}`, init);
 
 const createPrinter = async (overrides: Partial<CreatePrinterInput> = {}): Promise<Printer> => {
   const marker = crypto.randomUUID();
-  const response = await request(printersPath, {
-    body: JSON.stringify({
+  const result = await useCases.printers.createPrinter([
+    {
       location: `location-${marker}`,
       model: `model-${marker}`,
       name: `printer-${marker}`,
       serialNumber: `serial-${marker}`,
       ...overrides,
-    }),
-    headers: jsonHeaders,
-    method: "POST",
-  });
-
-  if (response.status !== 201) throw new Error(`Failed to create printer fixture: ${await response.text()}`);
-  const { data } = (await response.json()) as { data: Printer };
-  return data;
+    },
+  ]);
+  if (!result.isOk) throw result.error;
+  const printer = result.value[0];
+  if (!printer) throw new Error("Expected printer fixture to be created");
+  return printer;
 };
 
 describe("Printers API (end to end)", () => {
@@ -56,6 +55,7 @@ describe("Printers API (end to end)", () => {
     const application = await createApplication();
     if (application.db.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
     closeDatabase = application.db.close;
+    useCases = application.useCases;
     await migrate(application.db.db, { migrationsFolder: resolve(import.meta.dir, "../../migrations") });
 
     server = Bun.serve({ fetch: createApi(application.useCases).fetch, port: 0 });
@@ -120,36 +120,14 @@ describe("Printers API (end to end)", () => {
     });
   });
 
-  describe(`POST ${printersPath}`, () => {
-    test("creates and returns a printer", async () => {
-      const marker = crypto.randomUUID();
-      const response = await request(printersPath, {
-        body: JSON.stringify({
-          location: `location-${marker}`,
-          model: `model-${marker}`,
-          name: `printer-${marker}`,
-          nickname: `Front desk ${marker}`,
-          serialNumber: `serial-${marker}`,
-        }),
-        headers: jsonHeaders,
-        method: "POST",
-      });
-
-      expect(response.status).toBe(201);
-      expect(await response.json()).toMatchObject({
-        data: { name: `printer-${marker}`, nickname: `Front desk ${marker}` },
-      });
+  test("does not expose a create endpoint", async () => {
+    const response = await request(printersPath, {
+      body: JSON.stringify({ name: "printer" }),
+      headers: jsonHeaders,
+      method: "POST",
     });
 
-    test("rejects an incomplete printer", async () => {
-      const response = await request(printersPath, {
-        body: JSON.stringify({ name: "incomplete" }),
-        headers: jsonHeaders,
-        method: "POST",
-      });
-
-      expect(response.status).toBe(400);
-    });
+    expect(response.status).toBe(404);
   });
 
   describe(`GET ${printersPath}/:id`, () => {
@@ -169,6 +147,18 @@ describe("Printers API (end to end)", () => {
   });
 
   describe(`PATCH ${printersPath}/:id`, () => {
+    test("rejects updates to vendor-controlled name and model", async () => {
+      const printer = await createPrinter();
+      for (const field of ["name", "model"]) {
+        const response = await request(`${printersPath}/${printer.id}`, {
+          body: JSON.stringify({ [field]: "replacement" }),
+          headers: jsonHeaders,
+          method: "PATCH",
+        });
+        expect(response.status).toBe(400);
+      }
+    });
+
     test("updates a printer nickname", async () => {
       const printer = await createPrinter();
       const nickname = `Updated ${crypto.randomUUID()}`;
@@ -210,5 +200,4 @@ describe("Printers API (end to end)", () => {
       expect((await request(`${printersPath}/${id}`, { method: "DELETE" })).status).toBe(204);
     });
   });
-
 });

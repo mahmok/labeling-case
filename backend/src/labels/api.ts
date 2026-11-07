@@ -22,15 +22,6 @@ const LabelResponseSchema = z.object({ data: LabelSchema });
 const LabelsResponseSchema = z.object({ data: z.array(LabelSchema) });
 const ErrorSchema = z.object({ error: z.object({ message: z.string() }) });
 const labelText = z.string().trim().min(1).max(255);
-const CreateLabelSchema = z
-  .object({
-    id: labelText,
-    isPrimary: z.boolean(),
-    name: labelText,
-    nickname: labelText.optional(),
-    version: labelText,
-  })
-  .strict();
 const UpdateLabelSchema = z
   .object({ isPrimary: z.boolean().optional(), nickname: labelText.nullable().optional() })
   .strict()
@@ -132,21 +123,6 @@ export const createLabelsApi = (useCases: LabelUseCases): Hono => {
       tags: ["Labels"],
     }),
     async (c) => c.json({ data: unwrap(await useCases.getLabel(c.req.valid("param").id)) }, 200),
-  );
-
-  app.post(
-    "/",
-    validator("json", CreateLabelSchema, validationHook),
-    describeRoute({
-      responses: { 201: jsonResponse(LabelResponseSchema, "Created label"), ...errorResponses },
-      summary: "Create a label",
-      tags: ["Labels"],
-    }),
-    async (c) => {
-      const [label] = unwrap(await useCases.createLabel([c.req.valid("json")]));
-      if (!label) throw new HTTPException(500, { message: "Internal server error" });
-      return c.json({ data: label }, 201);
-    },
   );
 
   app.patch(

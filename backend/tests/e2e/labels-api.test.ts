@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createApi } from "../../src/api.ts";
-import { createApplication } from "../../src/application.ts";
+import { type ApplicationUseCases, createApplication } from "../../src/application.ts";
 import { config } from "../../src/config.ts";
 import type { Label } from "../../src/labels/domain.ts";
 import type { CreateLabelInput } from "../../src/labels/repository/interface.ts";
@@ -15,25 +15,33 @@ let container: StartedPostgreSqlContainer | undefined;
 let server: ReturnType<typeof Bun.serve> | undefined;
 let closeDatabase: () => Promise<void> = async () => {};
 let origin: string;
+let useCases: ApplicationUseCases;
 
 const request = (path: string, init?: RequestInit): Promise<Response> => fetch(`${origin}${path}`, init);
 
+const labelResponse = (
+  label: Label,
+): Omit<Label, "createdAt" | "updatedAt"> & { createdAt: string; updatedAt: string } => ({
+  ...label,
+  createdAt: label.createdAt.toISOString(),
+  updatedAt: label.updatedAt.toISOString(),
+});
+
 const createLabel = async (overrides: Partial<CreateLabelInput> = {}): Promise<Label> => {
   const marker = crypto.randomUUID();
-  const response = await request(labelsPath, {
-    body: JSON.stringify({
+  const result = await useCases.labels.createLabel([
+    {
       id: `external-${marker}`,
       isPrimary: false,
       name: `label-${marker}`,
       version: `v-${marker}`,
       ...overrides,
-    }),
-    headers: jsonHeaders,
-    method: "POST",
-  });
-  if (response.status !== 201) throw new Error(`Failed to create label fixture: ${await response.text()}`);
-  const { data } = (await response.json()) as { data: Label };
-  return data;
+    },
+  ]);
+  if (!result.isOk) throw result.error;
+  const label = result.value[0];
+  if (!label) throw new Error("Expected label fixture to be created");
+  return label;
 };
 
 describe("Labels API (end to end)", () => {
@@ -55,6 +63,7 @@ describe("Labels API (end to end)", () => {
     const application = await createApplication();
     if (application.db.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
     closeDatabase = application.db.close;
+    useCases = application.useCases;
     await migrate(application.db.db, { migrationsFolder: resolve(import.meta.dir, "../../migrations") });
     server = Bun.serve({ fetch: createApi(application.useCases).fetch, port: 0 });
     origin = `http://localhost:${server.port}`;
@@ -66,65 +75,14 @@ describe("Labels API (end to end)", () => {
     await container?.stop();
   }, 30_000);
 
-  describe(`POST ${labelsPath}`, () => {
-    test("creates a label using an externally supplied string ID", async () => {
-      const marker = crypto.randomUUID();
-      const input: CreateLabelInput = {
-        id: `label-system:${marker}`,
-        isPrimary: true,
-        name: `desk-${marker}`,
-        nickname: `front-${marker}`,
-        version: `revision-${marker}`,
-      };
-      const response = await request(labelsPath, {
-        body: JSON.stringify(input),
-        headers: jsonHeaders,
-        method: "POST",
-      });
-
-      expect(response.status).toBe(201);
-      expect(await response.json()).toMatchObject({
-        data: { ...input, createdAt: expect.any(String), updatedAt: expect.any(String) },
-      });
+  test("does not expose a create endpoint", async () => {
+    const response = await request(labelsPath, {
+      body: JSON.stringify({ id: "label", isPrimary: false, name: "label", version: "v1" }),
+      headers: jsonHeaders,
+      method: "POST",
     });
 
-    test("rejects missing required fields, invalid values, and unknown fields", async () => {
-      const incomplete = await request(labelsPath, {
-        body: JSON.stringify({ name: "incomplete", version: "1", isPrimary: false }),
-        headers: jsonHeaders,
-        method: "POST",
-      });
-      expect(incomplete.status).toBe(400);
-
-      const invalid = await request(labelsPath, {
-        body: JSON.stringify({ id: " ", name: "", version: "1", isPrimary: "yes" }),
-        headers: jsonHeaders,
-        method: "POST",
-      });
-      expect(invalid.status).toBe(400);
-
-      const extra = await request(labelsPath, {
-        body: JSON.stringify({ id: "external-extra", name: "valid", version: "1", isPrimary: false, extra: true }),
-        headers: jsonHeaders,
-        method: "POST",
-      });
-      expect(extra.status).toBe(400);
-    });
-
-    test("rejects duplicate external IDs", async () => {
-      const label = await createLabel();
-      const duplicate = await request(labelsPath, {
-        body: JSON.stringify({
-          id: label.id,
-          isPrimary: false,
-          name: "duplicate",
-          version: "1",
-        }),
-        headers: jsonHeaders,
-        method: "POST",
-      });
-      expect(duplicate.status).toBe(500);
-    });
+    expect(response.status).toBe(404);
   });
 
   describe(`GET ${labelsPath}`, () => {
@@ -140,7 +98,9 @@ describe("Labels API (end to end)", () => {
       const query = new URLSearchParams({ id: matching.id, isPrimary: "true", version: matching.version });
       const response = await request(`${labelsPath}?${query}`);
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ data: [matching] });
+      expect(await response.json()).toMatchObject({
+        data: [{ id: matching.id, isPrimary: true, name: matching.name, version: matching.version }],
+      });
     });
 
     test("filters by partial name and nickname, case-insensitively", async () => {
@@ -190,7 +150,7 @@ describe("Labels API (end to end)", () => {
       const response = await request(`${labelsPath}/${encodeURIComponent(label.id)}`);
 
       expect(response.status).toBe(200);
-      expect(await response.json()).toEqual({ data: label });
+      expect(await response.json()).toEqual({ data: labelResponse(label) });
     });
 
     test("returns 404 for an unknown ID", async () => {
