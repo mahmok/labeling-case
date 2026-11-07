@@ -29,6 +29,7 @@ export type LabelUseCases = {
   getLabel: (id: string) => Promise<Result<Label, Error>>;
   getLabels: (input: GetLabelsInput) => Promise<Result<Label[], Error>>;
   getVendorLabels: () => Promise<Result<GetLabelsResponse, Error>>;
+  sync: () => Promise<Result<ApplyLabelChangesResult, Error>>;
   applyLabelChanges: (input: ApplyLabelChangesInput) => Promise<Result<ApplyLabelChangesResult, Error>>;
   updateLabel: (inputs: UpdateLabelInput[]) => Promise<Result<Label[], Error>>;
 };
@@ -79,6 +80,73 @@ export const deleteLabel =
   (ids: string[]): Promise<Result<void, Error>> =>
     uow.execute((tx) => repository.delete([...new Set(ids)], tx));
 
+const LABEL_FETCH_PAGE_SIZE = 50;
+
+const fetchExistingLabels = <T>({ repository, uow }: Dependencies<T>): Promise<Result<Label[], Error>> =>
+  uow.execute(async (tx) => {
+    const labels: Label[] = [];
+    let offset = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const page = await repository.get(
+        {
+          pagination: { limit: LABEL_FETCH_PAGE_SIZE, offset },
+          sorting: [{ direction: "ASC", key: "id" }],
+        },
+        tx,
+      );
+      if (!page.isOk) return page;
+
+      labels.push(...page.value);
+      hasMore = page.value.length === LABEL_FETCH_PAGE_SIZE;
+      offset += LABEL_FETCH_PAGE_SIZE;
+    }
+
+    return ok(labels);
+  });
+
+const labelsAreEqual = (left: Label, right: { id: string; name: string; version: number }): boolean =>
+  left.id === right.id && left.name === right.name && left.version === String(right.version);
+
+const planLabelChanges = (
+  vendorLabels: GetLabelsResponse,
+  existingLabels: Label[],
+): ApplyLabelChangesInput => {
+  const vendorById = new Map(vendorLabels.map((label) => [label.id, label]));
+  const existingById = new Map(existingLabels.map((label) => [label.id, label]));
+  const create: CreateLabelInput[] = [];
+  const update: UpdateLabelInput[] = [];
+  const deleteIds: string[] = [];
+
+  for (const [id, vendorLabel] of vendorById) {
+    const existing = existingById.get(id);
+    if (!existing) {
+      create.push({ id, isPrimary: false, name: vendorLabel.name, version: String(vendorLabel.version) });
+    } else if (!labelsAreEqual(existing, vendorLabel)) {
+      update.push({ id, name: vendorLabel.name, version: String(vendorLabel.version) });
+    }
+  }
+
+  for (const [id] of existingById) {
+    if (!vendorById.has(id)) deleteIds.push(id);
+  }
+
+  return { create, delete: deleteIds, update };
+};
+
+const syncLabels = <T>(deps: Dependencies<T>) => async (): Promise<Result<ApplyLabelChangesResult, Error>> => {
+  const vendorLabels = await getVendorLabels(deps.client)();
+  if (!vendorLabels.isOk) return vendorLabels;
+  if (vendorLabels.value.length === 0) return ok({ created: [], deleted: [], updated: [] });
+
+  const existingLabels = await fetchExistingLabels(deps);
+  if (!existingLabels.isOk) return existingLabels;
+
+  const changes = planLabelChanges(vendorLabels.value, existingLabels.value);
+  return applyLabelChanges(deps)(changes);
+};
+
 export const applyLabelChanges =
   <T>({ repository, uow }: Dependencies<T>) =>
   (input: ApplyLabelChangesInput): Promise<Result<ApplyLabelChangesResult, Error>> =>
@@ -113,5 +181,6 @@ export const createLabelUseCases = <T>(deps: Dependencies<T>): LabelUseCases => 
   getLabel: getLabel(deps),
   getLabels: getLabels(deps),
   getVendorLabels: getVendorLabels(deps.client),
+  sync: syncLabels(deps),
   updateLabel: updateLabel(deps),
 });

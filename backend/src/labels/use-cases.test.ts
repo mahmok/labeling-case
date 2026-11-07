@@ -1,14 +1,20 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { config } from "../config.ts";
 import { createDatabase } from "../db";
+import type { SQLiteTransaction } from "../db/sqlite/unit-of-work.ts";
+import type { UnitOfWork } from "../db/unit-of-work.ts";
 import { isNotFoundError } from "../utils/errors.ts";
+import { ok } from "../utils/result.ts";
 import { MockClient } from "./client";
+import type { LabelsClient } from "./client/interface.ts";
 import type { Label } from "./domain.ts";
 import { fromDialect } from "./repository";
-import type { CreateLabelInput } from "./repository/interface.ts";
+import type { CreateLabelInput, LabelsRepository } from "./repository/interface.ts";
 import { createLabelUseCases, type LabelUseCases } from "./use-cases.ts";
 
 let useCases: LabelUseCases;
+let repository: LabelsRepository<SQLiteTransaction>;
+let unitOfWork: UnitOfWork<SQLiteTransaction>;
 let closeDatabase: () => Promise<void> = async () => {};
 
 const newLabelInput = (overrides: Partial<CreateLabelInput> = {}): CreateLabelInput => {
@@ -35,8 +41,9 @@ describe("Label use cases", () => {
     config.database.dialect = "sqlite";
     const database = await createDatabase();
     if (database.dialect !== "sqlite") throw new Error("Expected SQLite database");
-    const repository = await fromDialect("sqlite");
-    useCases = createLabelUseCases({ client: MockClient, repository, uow: database.uow });
+    repository = await fromDialect("sqlite");
+    unitOfWork = database.uow;
+    useCases = createLabelUseCases({ client: MockClient, repository, uow: unitOfWork });
     closeDatabase = database.close;
   });
 
@@ -167,5 +174,45 @@ describe("Label use cases", () => {
     if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
     expect(await useCases.getLabel(toDelete.id)).toEqual({ isOk: true, value: toDelete });
     expect(await useCases.getLabels({ id: [createdInput.id] })).toEqual({ isOk: true, value: [] });
+  });
+
+  test("sync reconciles vendor labels by external ID", async () => {
+    const unchanged = await createLabel({ id: "vendor-unchanged", name: "Unchanged", version: "1" });
+    const toUpdate = await createLabel({ id: "vendor-update", name: "Old name", version: "1" });
+    const toDelete = await createLabel({ id: "local-only", name: "Remove me", version: "1" });
+    const client: LabelsClient = {
+      get: async () =>
+        ok([
+          { id: "vendor-unchanged", name: "Unchanged", version: 1 },
+          { id: "vendor-update", name: "New name", version: 2 },
+          { id: "vendor-create", name: "Create me", version: 3 },
+        ]),
+    };
+    const syncUseCases = createLabelUseCases({ client, repository, uow: unitOfWork });
+
+    const result = await syncUseCases.sync();
+
+    expect(result).toMatchObject({
+      isOk: true,
+      value: {
+        created: [{ id: "vendor-create", name: "Create me", version: "3" }],
+        deleted: [{ id: toDelete.id }],
+        updated: [{ id: toUpdate.id, name: "New name", version: "2" }],
+      },
+    });
+    expect(await syncUseCases.getLabel(unchanged.id)).toEqual({ isOk: true, value: unchanged });
+    expect(await syncUseCases.getLabels({ id: [toDelete.id] })).toEqual({ isOk: true, value: [] });
+  });
+
+  test("sync leaves local labels unchanged for an empty vendor response", async () => {
+    const label = await createLabel();
+    const client: LabelsClient = { get: async () => ok([]) };
+    const syncUseCases = createLabelUseCases({ client, repository, uow: unitOfWork });
+
+    expect(await syncUseCases.sync()).toEqual({
+      isOk: true,
+      value: { created: [], deleted: [], updated: [] },
+    });
+    expect(await syncUseCases.getLabel(label.id)).toEqual({ isOk: true, value: label });
   });
 });

@@ -27,6 +27,21 @@ void (async () => {
       runOnStartup: config.jobs.printers.runOnStartup,
       type: "sync-printers",
     },
+    {
+      cron: config.jobs.labels.cron,
+      retry: config.jobs.labels.retry,
+      run: async () => {
+        const result = await application.useCases.labels.sync();
+        if (!result.isOk) return err(result.error);
+        return ok({
+          created: result.value.created.length,
+          deleted: result.value.deleted.length,
+          updated: result.value.updated.length,
+        });
+      },
+      runOnStartup: config.jobs.labels.runOnStartup,
+      type: "sync-labels",
+    },
   ];
   const jobsWorker = startJobsWorker(application.useCases.jobs, schedules);
 
