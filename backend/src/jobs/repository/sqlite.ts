@@ -50,6 +50,7 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
         ...(input.id?.length ? [inArray(jobsTable.id, input.id)] : []),
         ...(input.type?.length ? [inArray(jobsTable.type, input.type)] : []),
         ...(input.status?.length ? [inArray(jobsTable.status, input.status)] : []),
+        ...(input.triggeredBy?.length ? [inArray(jobsTable.triggeredBy, input.triggeredBy)] : []),
       ];
 
       let query = tx.select().from(jobsTable).$dynamic();

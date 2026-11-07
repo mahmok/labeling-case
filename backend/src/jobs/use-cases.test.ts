@@ -6,7 +6,7 @@ import type { Job } from "./domain.ts";
 import { fromDialect } from "./repository";
 import type { CreateJobInput } from "./repository/interface.ts";
 import { createJobUseCases, type JobsUseCases } from "./use-cases.ts";
-import { createScheduleRunner, runScheduledJob } from "./worker.ts";
+import { createScheduleRunner, runScheduledJob, startJobsWorker, startPendingApiJobs } from "./worker.ts";
 
 let useCases: JobsUseCases;
 let closeDatabase: () => Promise<void> = async () => {};
@@ -102,15 +102,133 @@ describe("Job use cases", () => {
       type: "sync-printers",
     };
 
-    const firstRun = runner(schedule);
+    const firstRun = runner.run(schedule);
     await taskStarted;
-    await runner(schedule);
+    await runner.run(schedule);
     expect(runCount).toBe(1);
     finishTask?.();
     await firstRun;
     expect(await useCases.getJobs({ type: ["sync-printers"] })).toMatchObject({
       isOk: true,
       value: [{ status: "completed" }],
+    });
+  });
+
+  test("starts a pending API-triggered job without waiting for its cron schedule", async () => {
+    await createJob({ triggeredBy: "api", type: "sync-printers" });
+    let runCount = 0;
+    const schedule = {
+      cron: "0 0 * * *",
+      retry: { initialDelayMs: 0, maxAttempts: 1, maxDelayMs: 0, multiplier: 1 },
+      run: async () => {
+        runCount += 1;
+        return ok({ synced: 1 });
+      },
+      runOnStartup: false,
+      type: "sync-printers",
+    };
+
+    const executions = await startPendingApiJobs(useCases, [schedule], createScheduleRunner(useCases));
+    await Promise.all(executions);
+
+    expect(runCount).toBe(1);
+    expect(await useCases.getJobs({ type: ["sync-printers"] })).toMatchObject({
+      isOk: true,
+      value: [{ status: "completed", triggeredBy: "api" }],
+    });
+  });
+
+  test("polls for API-triggered work added after the worker starts", async () => {
+    let markRunStarted: (() => void) | undefined;
+    const runStarted = new Promise<void>((resolve) => {
+      markRunStarted = resolve;
+    });
+    let markInitialPollComplete: (() => void) | undefined;
+    const initialPollComplete = new Promise<void>((resolve) => {
+      markInitialPollComplete = resolve;
+    });
+    const workerUseCases = {
+      ...useCases,
+      getJobs: async (input: Parameters<JobsUseCases["getJobs"]>[0]) => {
+        const result = await useCases.getJobs(input);
+        if (input.triggeredBy?.includes("api")) markInitialPollComplete?.();
+        return result;
+      },
+    };
+    const schedule = {
+      cron: "0 0 1 1 *",
+      retry: { initialDelayMs: 0, maxAttempts: 1, maxDelayMs: 0, multiplier: 1 },
+      run: async () => {
+        markRunStarted?.();
+        return ok({ synced: 1 });
+      },
+      runOnStartup: false,
+      type: "sync-printers",
+    };
+    const worker = startJobsWorker(workerUseCases, [schedule]);
+
+    try {
+      await initialPollComplete;
+      await createJob({ triggeredBy: "api", type: "sync-printers" });
+      await Promise.race([
+        runStarted,
+        Bun.sleep(2_500).then(() => {
+          throw new Error("Worker did not pick up the API-triggered job");
+        }),
+      ]);
+    } finally {
+      await worker.stop();
+    }
+
+    expect(await useCases.getJobs({ type: ["sync-printers"] })).toMatchObject({
+      isOk: true,
+      value: [{ status: "completed", triggeredBy: "api" }],
+    });
+  });
+
+  test("leaves API-triggered work pending while its job type is running, then starts it afterward", async () => {
+    await createJob({ triggeredBy: "api", type: "sync-printers" });
+    await createJob({ triggeredBy: "api", type: "sync-printers" });
+
+    let finishFirstRun: (() => void) | undefined;
+    let markFirstRunStarted: (() => void) | undefined;
+    const firstRunStarted = new Promise<void>((resolve) => {
+      markFirstRunStarted = resolve;
+    });
+    const firstRunBlocked = new Promise<void>((resolve) => {
+      finishFirstRun = resolve;
+    });
+    let runCount = 0;
+    const schedule = {
+      cron: "0 0 * * *",
+      retry: { initialDelayMs: 0, maxAttempts: 1, maxDelayMs: 0, multiplier: 1 },
+      run: async () => {
+        runCount += 1;
+        if (runCount === 1) {
+          markFirstRunStarted?.();
+          await firstRunBlocked;
+        }
+        return ok({ synced: 1 });
+      },
+      runOnStartup: false,
+      type: "sync-printers",
+    };
+    const runner = createScheduleRunner(useCases);
+    const firstExecution = runner.run(schedule);
+    await firstRunStarted;
+
+    expect(await startPendingApiJobs(useCases, [schedule], runner)).toEqual([]);
+    expect(runCount).toBe(1);
+
+    finishFirstRun?.();
+    await firstExecution;
+    const queuedExecutions = await startPendingApiJobs(useCases, [schedule], runner);
+    await Promise.all(queuedExecutions);
+
+    expect(runCount).toBe(2);
+    expect(await useCases.getJobs({ type: ["sync-printers"] })).toMatchObject({
+      isOk: true,
+      value: [{ status: "completed" }, { status: "completed" }],
     });
   });
 

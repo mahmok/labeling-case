@@ -17,7 +17,12 @@ export type JobsWorker = {
   stop: () => Promise<void>;
 };
 
-type ScheduleRunner = (schedule: ScheduledJob) => Promise<void>;
+type ScheduleRunner = {
+  isRunning: (type: string) => boolean;
+  run: (schedule: ScheduledJob) => Promise<void>;
+};
+
+const API_JOB_POLL_INTERVAL_MS = 1_000;
 
 const retryDelay = (attempt: number, policy: RetryPolicyConfig): number =>
   Math.min(policy.maxDelayMs, policy.initialDelayMs * policy.multiplier ** (attempt - 1));
@@ -146,24 +151,53 @@ export const runScheduledJob = async (useCases: JobsUseCases, schedule: Schedule
   return runAttempts(useCases, claimed.value, schedule);
 };
 
+export const startPendingApiJobs = async (
+  useCases: JobsUseCases,
+  schedules: ScheduledJob[],
+  runSchedule: ScheduleRunner,
+): Promise<Promise<void>[]> => {
+  const executions: Promise<void>[] = [];
+
+  for (const schedule of schedules) {
+    if (runSchedule.isRunning(schedule.type)) continue;
+
+    const pending = await useCases.getJobs({
+      pagination: { limit: 1, offset: 0 },
+      status: ["pending"],
+      triggeredBy: ["api"],
+      type: [schedule.type],
+    });
+    if (!pending.isOk) {
+      logger.error({ error: pending.error, jobType: schedule.type, msg: "Failed to check for API-triggered jobs" });
+      continue;
+    }
+    if (pending.value.length > 0) executions.push(runSchedule.run(schedule));
+  }
+
+  return executions;
+};
+
 export const createScheduleRunner = (useCases: JobsUseCases): ScheduleRunner => {
   const activeTypes = new Set<string>();
 
-  return async (schedule: ScheduledJob): Promise<void> => {
-    if (activeTypes.has(schedule.type)) {
-      logger.info({ jobType: schedule.type, msg: "Skipped scheduled job because it is already running" });
-      return;
-    }
+  return {
+    isRunning: (type: string): boolean => activeTypes.has(type),
+    async run(schedule: ScheduledJob): Promise<void> {
+      if (activeTypes.has(schedule.type)) {
+        logger.info({ jobType: schedule.type, msg: "Skipped scheduled job because it is already running" });
+        return;
+      }
 
-    activeTypes.add(schedule.type);
-    try {
-      const result = await runScheduledJob(useCases, schedule);
-      if (!result.isOk) logger.error({ error: result.error, jobType: schedule.type, msg: "Scheduled job failed" });
-    } catch (error) {
-      logger.error({ error, jobType: schedule.type, msg: "Scheduled job crashed" });
-    } finally {
-      activeTypes.delete(schedule.type);
-    }
+      activeTypes.add(schedule.type);
+      try {
+        const result = await runScheduledJob(useCases, schedule);
+        if (!result.isOk) logger.error({ error: result.error, jobType: schedule.type, msg: "Scheduled job failed" });
+      } catch (error) {
+        logger.error({ error, jobType: schedule.type, msg: "Scheduled job crashed" });
+      } finally {
+        activeTypes.delete(schedule.type);
+      }
+    },
   };
 };
 
@@ -186,15 +220,34 @@ const validateRetryPolicies = (schedules: ScheduledJob[]): void => {
 
 export const startJobsWorker = (useCases: JobsUseCases, schedules: ScheduledJob[]): JobsWorker => {
   validateRetryPolicies(schedules);
-  const runSchedule = createScheduleRunner(useCases);
+  const scheduleRunner = createScheduleRunner(useCases);
   const activeRuns = new Set<Promise<void>>();
   const run = (schedule: ScheduledJob): Promise<void> => {
     let execution: Promise<void>;
-    execution = runSchedule(schedule).finally(() => activeRuns.delete(execution));
+    execution = scheduleRunner.run(schedule).finally(() => activeRuns.delete(execution));
     activeRuns.add(execution);
     return execution;
   };
+  const trackedRunner: ScheduleRunner = { isRunning: scheduleRunner.isRunning, run };
 
+  let polling: Promise<void> | undefined;
+  const pollApiJobs = (): Promise<void> => {
+    if (polling !== undefined) return polling;
+    polling = (async () => {
+      try {
+        const executions = await startPendingApiJobs(useCases, schedules, trackedRunner);
+        for (const execution of executions) void execution;
+      } catch (error) {
+        logger.error({ error, msg: "Failed to poll for API-triggered jobs" });
+      }
+    })().finally(() => {
+      polling = undefined;
+    });
+    return polling;
+  };
+
+  const apiJobPoll = setInterval(() => void pollApiJobs(), API_JOB_POLL_INTERVAL_MS);
+  void pollApiJobs();
   const cronJobs = schedules.map((schedule) => Bun.cron(schedule.cron, () => run(schedule)));
   for (const schedule of schedules) {
     if (schedule.runOnStartup) void run(schedule);
@@ -202,7 +255,9 @@ export const startJobsWorker = (useCases: JobsUseCases, schedules: ScheduledJob[
 
   return {
     async stop(): Promise<void> {
+      clearInterval(apiJobPoll);
       for (const cronJob of cronJobs) cronJob.stop();
+      await polling;
       await Promise.all(activeRuns);
     },
   };

@@ -20,6 +20,7 @@ export type GetJobsInput = {
   id?: string[];
   type?: string[];
   status?: JobStatus[];
+  triggeredBy?: string[];
   pagination?: { limit: number; offset: number };
   sorting?: { key: JobSortKey; direction: "ASC" | "DESC" }[];
 };
