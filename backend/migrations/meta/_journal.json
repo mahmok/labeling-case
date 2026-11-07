@@ -35,6 +35,13 @@
       "tag": "0004_jobs_table",
       "version": "7",
       "when": 1794051819200
+    },
+    {
+      "breakpoints": true,
+      "idx": 5,
+      "tag": "0005_add_triggered_by_and_started_at_columns",
+      "version": "7",
+      "when": 1794062330333
     }
   ],
   "version": "7"

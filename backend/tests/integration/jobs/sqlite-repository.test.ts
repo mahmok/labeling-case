@@ -56,14 +56,17 @@ describe("SQLiteJobsRepository", () => {
     await closeDatabase();
   });
 
-  test("creates jobs with pending status, zero attempts, and empty result state", async () => {
+  test("creates jobs with pending state, system trigger, and no start time", async () => {
     const job = await createJob({ type: "sync-printers" });
 
     expect(job).toMatchObject({
       attempts: 0,
+      durationMs: null,
       error: null,
       result: null,
+      startedAt: null,
       status: "pending",
+      triggeredBy: "system",
       type: "sync-printers",
     });
     expect(job.createdAt).toBeInstanceOf(Date);
@@ -92,15 +95,22 @@ describe("SQLiteJobsRepository", () => {
     expect(result.map(({ type: jobType }) => jobType)).toEqual([`${type}-b`]);
   });
 
-  test("updates a job with completion result data", async () => {
+  test("updates completion state and returns elapsed duration from startedAt", async () => {
     const job = await createJob();
+    const started = await claimNext(job.type);
+    if (!started) throw new Error("Expected job claim to return a row");
+    await Bun.sleep(10);
+
     const result = { source: "vendor", synced: 4 };
     const updated = await unitOfWork.execute((tx) =>
       SQLiteJobsRepository.update([{ id: job.id, result, status: "completed" }], tx),
     );
     if (!updated.isOk) throw updated.error;
+    const [completed] = updated.value;
 
-    expect(updated.value).toMatchObject([{ id: job.id, result, status: "completed" }]);
+    expect(completed).toMatchObject({ id: job.id, result, status: "completed" });
+    expect(completed?.startedAt).toEqual(started.startedAt);
+    expect(completed?.durationMs).toBeGreaterThanOrEqual(1);
   });
 
   test("records a terminal job failure", async () => {
@@ -113,7 +123,7 @@ describe("SQLiteJobsRepository", () => {
     expect(updated.value).toMatchObject([{ error: "vendor unavailable", id: job.id, status: "failed" }]);
   });
 
-  test("claims pending jobs of the requested type once", async () => {
+  test("claims pending jobs of the requested type once and sets startedAt", async () => {
     await createJob({ type: "sync-labels" });
     const first = await createJob({ type: "sync-printers" });
     await Bun.sleep(5);
@@ -125,6 +135,8 @@ describe("SQLiteJobsRepository", () => {
 
     expect(firstClaim?.id).toBe(first.id);
     expect(firstClaim).toMatchObject({ attempts: 1, status: "in_progress" });
+    expect(firstClaim?.startedAt).toBeInstanceOf(Date);
+    expect(firstClaim?.durationMs).toBeGreaterThanOrEqual(0);
     expect(secondClaim?.id).toBe(second.id);
     expect(secondClaim).toMatchObject({ attempts: 1, status: "in_progress" });
     expect(thirdClaim).toBeNull();

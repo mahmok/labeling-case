@@ -33,6 +33,8 @@ export const createSqliteDatabase = async (): Promise<{ db: SQLiteDatabase; clos
       attempts INTEGER NOT NULL DEFAULT 0,
       result TEXT,
       error TEXT,
+      triggered_by TEXT NOT NULL DEFAULT 'system',
+      started_at INTEGER,
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
       updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     )

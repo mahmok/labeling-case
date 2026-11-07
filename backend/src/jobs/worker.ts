@@ -22,9 +22,11 @@ type ScheduleRunner = (schedule: ScheduledJob) => Promise<void>;
 const retryDelay = (attempt: number, policy: RetryPolicyConfig): number =>
   Math.min(policy.maxDelayMs, policy.initialDelayMs * policy.multiplier ** (attempt - 1));
 
-const updateJob = async (useCases: JobsUseCases, input: UpdateJobInput): Promise<Result<void, Error>> => {
+const updateJob = async (useCases: JobsUseCases, input: UpdateJobInput): Promise<Result<Job, Error>> => {
   const result = await useCases.updateJobs([input]);
-  return result.isOk ? ok() : result;
+  if (!result.isOk) return result;
+  const [job] = result.value;
+  return job ? ok(job) : err(new Error("Job use case returned no updated job"));
 };
 
 const recoverInterruptedJobs = async (useCases: JobsUseCases, type: string): Promise<Result<void, Error>> => {
@@ -76,7 +78,13 @@ const runAttempts = async (useCases: JobsUseCases, job: Job, schedule: Scheduled
         status: "completed",
       });
       if (!completed.isOk) return completed;
-      logger.info({ attempt, jobId: job.id, jobType: schedule.type, msg: "Scheduled job completed" });
+      logger.info({
+        attempt,
+        durationMs: completed.value.durationMs,
+        jobId: job.id,
+        jobType: schedule.type,
+        msg: "Scheduled job completed",
+      });
       return ok();
     }
 
@@ -89,7 +97,14 @@ const runAttempts = async (useCases: JobsUseCases, job: Job, schedule: Scheduled
         status: "failed",
       });
       if (!failed.isOk) return failed;
-      logger.error({ attempt, error: message, jobId: job.id, jobType: schedule.type, msg: "Scheduled job failed" });
+      logger.error({
+        attempt,
+        durationMs: failed.value.durationMs,
+        error: message,
+        jobId: job.id,
+        jobType: schedule.type,
+        msg: "Scheduled job failed",
+      });
       return ok();
     }
 

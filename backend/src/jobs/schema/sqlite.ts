@@ -12,7 +12,9 @@ export const jobsTable = sqliteTable(
       .primaryKey()
       .$defaultFn(() => Bun.randomUUIDv7()),
     result: text("result", { mode: "json" }).$type<JobResult | undefined>(),
+    startedAt: integer("started_at", { mode: "timestamp_ms" }),
     status: text("status").$type<JobStatus>().default("pending").notNull(),
+    triggeredBy: text("triggered_by").default("system").notNull(),
     type: text("type").notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .default(sql`(unixepoch() * 1000)`)

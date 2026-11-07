@@ -4,6 +4,7 @@ import { asError, err, ok, type Result } from "../../utils/result.ts";
 import type { Job } from "../domain.ts";
 import { jobsTable } from "../schema/postgres.ts";
 import type { CreateJobInput, GetJobsInput, JobsRepository, UpdateJobInput } from "./interface.ts";
+import { toJob } from "./mapper.ts";
 
 const buildCase = <K extends keyof UpdateJobInput>(field: K, input: UpdateJobInput[]): SQL => {
   const cases = input
@@ -27,10 +28,10 @@ export const PostgresJobsRepository: JobsRepository<PostgresTransaction> = {
 
       const [claimed] = await tx
         .update(jobsTable)
-        .set({ attempts: sql`${jobsTable.attempts} + 1`, status: "in_progress" })
+        .set({ attempts: sql`${jobsTable.attempts} + 1`, startedAt: new Date(), status: "in_progress" })
         .where(and(eq(jobsTable.id, candidate.id), eq(jobsTable.status, "pending"), eq(jobsTable.type, type)))
         .returning();
-      return ok(claimed ?? null);
+      return ok(claimed ? toJob(claimed) : null);
     } catch (error) {
       return err(asError(error));
     }
@@ -38,7 +39,8 @@ export const PostgresJobsRepository: JobsRepository<PostgresTransaction> = {
   async create(input: CreateJobInput[], tx: PostgresTransaction): Promise<Result<Job[], Error>> {
     try {
       if (input.length === 0) return ok([]);
-      return ok(await tx.insert(jobsTable).values(input).returning());
+      const jobs = await tx.insert(jobsTable).values(input).returning();
+      return ok(jobs.map(toJob));
     } catch (error) {
       return err(asError(error));
     }
@@ -71,7 +73,7 @@ export const PostgresJobsRepository: JobsRepository<PostgresTransaction> = {
         );
       }
       if (input.pagination) query = query.limit(input.pagination.limit).offset(input.pagination.offset);
-      return ok(await query);
+      return ok((await query).map(toJob));
     } catch (error) {
       return err(asError(error));
     }
@@ -91,7 +93,8 @@ export const PostgresJobsRepository: JobsRepository<PostgresTransaction> = {
       );
       if (Object.keys(updates).length === 0) return ok([]);
 
-      return ok(await tx.update(jobsTable).set(updates).where(inArray(jobsTable.id, ids)).returning());
+      const jobs = await tx.update(jobsTable).set(updates).where(inArray(jobsTable.id, ids)).returning();
+      return ok(jobs.map(toJob));
     } catch (error) {
       return err(asError(error));
     }

@@ -33,16 +33,39 @@ describe("Job use cases", () => {
     await closeDatabase();
   });
 
-  test("createJobs creates a batch with default pending state", async () => {
-    const first = { type: "sync-printers" };
+  test("createJobs creates a batch with default trigger, pending state, and no duration", async () => {
+    const first = { triggeredBy: "cron", type: "sync-printers" };
     const second = { type: "sync-labels" };
     const result = await useCases.createJobs([first, second]);
 
     expect(result.isOk).toBe(true);
     if (result.isOk) {
-      expect(result.value.map(({ type, status, attempts }) => ({ attempts, status, type }))).toEqual([
-        { attempts: 0, status: "pending", type: first.type },
-        { attempts: 0, status: "pending", type: second.type },
+      expect(
+        result.value.map(({ attempts, durationMs, startedAt, status, triggeredBy, type }) => ({
+          attempts,
+          durationMs,
+          startedAt,
+          status,
+          triggeredBy,
+          type,
+        })),
+      ).toEqual([
+        {
+          attempts: 0,
+          durationMs: null,
+          startedAt: null,
+          status: "pending",
+          triggeredBy: "cron",
+          type: first.type,
+        },
+        {
+          attempts: 0,
+          durationMs: null,
+          startedAt: null,
+          status: "pending",
+          triggeredBy: "system",
+          type: second.type,
+        },
       ]);
     }
   });
@@ -134,6 +157,10 @@ describe("Job use cases", () => {
     const claimed = await useCases.claimNextJob("sync-printers");
 
     expect(claimed).toMatchObject({ isOk: true, value: { attempts: 1, id: job.id, status: "in_progress" } });
+    if (claimed.isOk && claimed.value) {
+      expect(claimed.value.startedAt).toBeInstanceOf(Date);
+      expect(claimed.value.durationMs).toBeGreaterThanOrEqual(0);
+    }
     expect(await useCases.claimNextJob("sync-printers")).toEqual({ isOk: true, value: null });
     expect(await useCases.getJobs({ type: ["sync-labels"] })).toMatchObject({
       isOk: true,
@@ -141,11 +168,15 @@ describe("Job use cases", () => {
     });
   });
 
-  test("updateJobs stores job completion state", async () => {
+  test("updateJobs stores completion state and exposes elapsed duration", async () => {
     const job = await createJob();
+    const claimed = await useCases.claimNextJob(job.type);
+    expect(claimed.isOk && claimed.value).toBeTruthy();
+    await Bun.sleep(5);
     const result = await useCases.updateJobs([{ id: job.id, result: { synced: 3 }, status: "completed" }]);
 
     expect(result).toMatchObject({ isOk: true, value: [{ id: job.id, result: { synced: 3 }, status: "completed" }] });
+    if (result.isOk) expect(result.value[0]?.durationMs).toBeGreaterThanOrEqual(0);
   });
 
   test("deleteJobs is idempotent", async () => {

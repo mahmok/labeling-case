@@ -4,6 +4,7 @@ import { asError, err, ok, type Result } from "../../utils/result.ts";
 import type { Job } from "../domain.ts";
 import { jobsTable } from "../schema/sqlite.ts";
 import type { CreateJobInput, GetJobsInput, JobsRepository, UpdateJobInput } from "./interface.ts";
+import { type JobRecord, toJob } from "./mapper";
 
 export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
   async claimNext(type: string, tx: SQLiteTransaction): Promise<Result<Job | null, Error>> {
@@ -16,10 +17,10 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
         .limit(1);
       const [claimed] = await tx
         .update(jobsTable)
-        .set({ attempts: sql`${jobsTable.attempts} + 1`, status: "in_progress" })
+        .set({ attempts: sql`${jobsTable.attempts} + 1`, startedAt: new Date(), status: "in_progress" })
         .where(and(eq(jobsTable.status, "pending"), eq(jobsTable.type, type), inArray(jobsTable.id, candidate)))
         .returning();
-      return ok(claimed ?? null);
+      return ok(claimed ? toJob(claimed) : null);
     } catch (error) {
       return err(asError(error));
     }
@@ -27,7 +28,8 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
   async create(input: CreateJobInput[], tx: SQLiteTransaction): Promise<Result<Job[], Error>> {
     try {
       if (input.length === 0) return ok([]);
-      return ok(await tx.insert(jobsTable).values(input).returning());
+      const jobs = await tx.insert(jobsTable).values(input).returning();
+      return ok(jobs.map(toJob));
     } catch (error) {
       return err(asError(error));
     }
@@ -60,7 +62,7 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
         );
       }
       if (input.pagination) query = query.limit(input.pagination.limit).offset(input.pagination.offset);
-      return ok(await query);
+      return ok((await query).map(toJob));
     } catch (error) {
       return err(asError(error));
     }
@@ -73,7 +75,7 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
       if (new Set(ids).size !== ids.length) return err(new Error("Duplicate job IDs"));
 
       const fields = ["attempts", "status", "result", "error"] as const;
-      const updated: Job[] = [];
+      const updated: JobRecord[] = [];
       for (const item of input) {
         const changes = Object.fromEntries(
           fields.filter((field) => item[field] !== undefined).map((field) => [field, item[field]]),
@@ -81,7 +83,7 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
         if (Object.keys(changes).length === 0) continue;
         updated.push(...(await tx.update(jobsTable).set(changes).where(eq(jobsTable.id, item.id)).returning()));
       }
-      return ok(updated);
+      return ok(updated.map(toJob));
     } catch (error) {
       return err(asError(error));
     }

@@ -75,14 +75,17 @@ describe("PostgresJobsRepository", () => {
     await container?.stop();
   }, 30_000);
 
-  test("creates jobs with pending status, zero attempts, and empty result state", async () => {
+  test("creates jobs with pending state, system trigger, and no start time", async () => {
     const job = await createJob({ type: "sync-printers" });
 
     expect(job).toMatchObject({
       attempts: 0,
+      durationMs: null,
       error: null,
       result: null,
+      startedAt: null,
       status: "pending",
+      triggeredBy: "system",
       type: "sync-printers",
     });
     expect(job.createdAt).toBeInstanceOf(Date);
@@ -111,15 +114,22 @@ describe("PostgresJobsRepository", () => {
     expect(result.map(({ type: jobType }) => jobType)).toEqual([`${type}-b`]);
   });
 
-  test("updates a job with completion result data", async () => {
+  test("updates completion state and returns elapsed duration from startedAt", async () => {
     const job = await createJob();
+    const started = await claimNext(job.type);
+    if (!started) throw new Error("Expected job claim to return a row");
+    await Bun.sleep(10);
+
     const result = { source: "vendor", synced: 4 };
     const updated = await unitOfWork.execute((tx) =>
       PostgresJobsRepository.update([{ id: job.id, result, status: "completed" }], tx),
     );
     if (!updated.isOk) throw updated.error;
+    const [completed] = updated.value;
 
-    expect(updated.value).toMatchObject([{ id: job.id, result, status: "completed" }]);
+    expect(completed).toMatchObject({ id: job.id, result, status: "completed" });
+    expect(completed?.startedAt).toEqual(started.startedAt);
+    expect(completed?.durationMs).toBeGreaterThanOrEqual(1);
   });
 
   test("records a terminal job failure", async () => {
@@ -138,6 +148,8 @@ describe("PostgresJobsRepository", () => {
     const claimed = await claimNext("sync-printers");
 
     expect(claimed).toMatchObject({ attempts: 1, id: job.id, status: "in_progress" });
+    expect(claimed?.startedAt).toBeInstanceOf(Date);
+    expect(claimed?.durationMs).toBeGreaterThanOrEqual(0);
     expect(await claimNext("sync-printers")).toBeNull();
     expect((await getJobs({ type: ["sync-labels"] }))[0]?.status).toBe("pending");
   });

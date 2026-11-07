@@ -9,6 +9,9 @@ export type Job = {
   status: JobStatus;
   createdAt: Date;
   updatedAt: Date;
+  startedAt: Date | null;
+  durationMs: number | null;
+  triggeredBy: string;
   attempts: number;
   result?: JobResult | null;
   error?: string | null;

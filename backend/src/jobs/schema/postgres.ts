@@ -11,7 +11,9 @@ export const jobsTable = pgTable(
       .primaryKey()
       .$defaultFn(() => Bun.randomUUIDv7()),
     result: jsonb("result").$type<JobResult | undefined>(),
+    startedAt: timestamp("started_at"),
     status: varchar("status", { length: 32 }).$type<JobStatus>().default("pending").notNull(),
+    triggeredBy: varchar("triggered_by", { length: 255 }).default("system").notNull(),
     type: varchar("type", { length: 255 }).notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()

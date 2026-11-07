@@ -3,14 +3,25 @@ import type { Job, JobResult, JobStatus } from "../domain.ts";
 
 export type CreateJobInput = {
   type: string;
+  triggeredBy?: string;
 };
+
+export type JobSortKey =
+  | "id"
+  | "type"
+  | "status"
+  | "attempts"
+  | "createdAt"
+  | "updatedAt"
+  | "startedAt"
+  | "triggeredBy";
 
 export type GetJobsInput = {
   id?: string[];
   type?: string[];
   status?: JobStatus[];
   pagination?: { limit: number; offset: number };
-  sorting?: { key: keyof Job; direction: "ASC" | "DESC" }[];
+  sorting?: { key: JobSortKey; direction: "ASC" | "DESC" }[];
 };
 
 export type UpdateJobInput = {
