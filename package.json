@@ -11,10 +11,12 @@
     "backend:api:start": "bun run --filter backend start:api",
     "backend:db:migrate": "bun run --filter backend db:migrate:runtime",
     "backend:worker:dev": "bun run --filter backend dev:worker",
-    "backend:worker:start": "bun run --filter backend start:worker"
+    "backend:worker:start": "bun run --filter backend start:worker",
+    "frontend:dev": "bun run --filter frontend dev"
   },
   "type": "module",
   "workspaces": [
-    "backend"
+    "backend",
+    "frontend"
   ]
 }

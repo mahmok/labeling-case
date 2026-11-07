@@ -15,10 +15,14 @@
     },
     "enabled": true
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "files": {
     "ignoreUnknown": false
   },
-
   "formatter": {
     "enabled": true,
     "formatWithErrors": true,
