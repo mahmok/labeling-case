@@ -11,6 +11,6 @@ export async function fromDialect(
     case "postgresql":
       return (await import("./postgres.ts")).PostgresLabelsRepository;
     case "sqlite":
-      throw new Error("SQLite labels repository is not implemented yet");
+      return (await import("./sqlite.ts")).SQLiteLabelsRepository;
   }
 }

@@ -11,6 +11,6 @@ export async function fromDialect(
     case "postgresql":
       return (await import("./postgres.ts")).PostgresPrintersRepository;
     case "sqlite":
-      throw new Error("SQLite printers repository is not implemented yet");
+      return (await import("./sqlite.ts")).SQLitePrintersRepository;
   }
 }

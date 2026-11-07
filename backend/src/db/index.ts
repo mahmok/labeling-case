@@ -8,19 +8,21 @@ import type { SQLiteTransaction } from "./sqlite/unit-of-work.ts";
 import type { UnitOfWork } from "./unit-of-work.ts";
 
 type PostgresDatabase = NodePgDatabase<typeof PostgresSchema>;
+type SQLiteDatabase = LibSQLDatabase<typeof import("./sqlite/sqlite.ts").schema>;
 
 type CloseDatabase = { close: () => Promise<void> };
 
 export type Database =
-  | ({ dialect: "sqlite"; db: LibSQLDatabase; uow: UnitOfWork<SQLiteTransaction> } & CloseDatabase)
+  | ({ dialect: "sqlite"; db: SQLiteDatabase; uow: UnitOfWork<SQLiteTransaction> } & CloseDatabase)
   | ({ dialect: "postgresql"; db: PostgresDatabase; uow: UnitOfWork<PostgresTransaction> } & CloseDatabase);
 
 export const createDatabase = async (): Promise<Database> => {
   const dialect = config.database.dialect;
 
   if (dialect === "sqlite") {
-    const { close, db } = await import("./sqlite/sqlite.ts");
+    const { close, db, initialize } = await import("./sqlite/sqlite.ts");
     const { SQLiteUnitOfWork } = await import("./sqlite/unit-of-work.ts");
+    await initialize();
     return { close, db, dialect, uow: SQLiteUnitOfWork };
   }
 
