@@ -157,7 +157,11 @@ export const createPrintersApi = (useCases: PrinterUseCases): Hono => {
       summary: "Create a printer",
       tags: ["Printers"],
     }),
-    async (c) => c.json({ data: unwrap(await useCases.createPrinter(c.req.valid("json"))) }, 201),
+    async (c) => {
+      const [printer] = unwrap(await useCases.createPrinter([c.req.valid("json")]));
+      if (!printer) throw new HTTPException(500, { message: "Internal server error" });
+      return c.json({ data: printer }, 201);
+    },
   );
 
   app.patch(
@@ -174,7 +178,9 @@ export const createPrintersApi = (useCases: PrinterUseCases): Hono => {
     }),
     async (c) => {
       const { id } = c.req.valid("param");
-      return c.json({ data: unwrap(await useCases.updatePrinter({ id, ...c.req.valid("json") })) }, 200);
+      const [printer] = unwrap(await useCases.updatePrinter([{ id, ...c.req.valid("json") }]));
+      if (!printer) throw new HTTPException(500, { message: "Internal server error" });
+      return c.json({ data: printer }, 200);
     },
   );
 
@@ -187,7 +193,7 @@ export const createPrintersApi = (useCases: PrinterUseCases): Hono => {
       tags: ["Printers"],
     }),
     async (c) => {
-      unwrap(await useCases.deletePrinter(c.req.valid("param").id));
+      unwrap(await useCases.deletePrinter([c.req.valid("param").id]));
       return c.body(null, 204);
     },
   );

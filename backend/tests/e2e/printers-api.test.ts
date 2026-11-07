@@ -203,6 +203,12 @@ describe("Printers API (end to end)", () => {
       expect(response.status).toBe(204);
       expect((await request(`${printersPath}/${printer.id}`)).status).toBe(404);
     });
+
+    test("returns success when deleting an unknown printer", async () => {
+      const id = crypto.randomUUID();
+      expect((await request(`${printersPath}/${id}`, { method: "DELETE" })).status).toBe(204);
+      expect((await request(`${printersPath}/${id}`, { method: "DELETE" })).status).toBe(204);
+    });
   });
 
 });

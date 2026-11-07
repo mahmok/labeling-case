@@ -142,7 +142,11 @@ export const createLabelsApi = (useCases: LabelUseCases): Hono => {
       summary: "Create a label",
       tags: ["Labels"],
     }),
-    async (c) => c.json({ data: unwrap(await useCases.createLabel(c.req.valid("json"))) }, 201),
+    async (c) => {
+      const [label] = unwrap(await useCases.createLabel([c.req.valid("json")]));
+      if (!label) throw new HTTPException(500, { message: "Internal server error" });
+      return c.json({ data: label }, 201);
+    },
   );
 
   app.patch(
@@ -156,7 +160,9 @@ export const createLabelsApi = (useCases: LabelUseCases): Hono => {
     }),
     async (c) => {
       const { id } = c.req.valid("param");
-      return c.json({ data: unwrap(await useCases.updateLabel({ id, ...c.req.valid("json") })) }, 200);
+      const [label] = unwrap(await useCases.updateLabel([{ id, ...c.req.valid("json") }]));
+      if (!label) throw new HTTPException(500, { message: "Internal server error" });
+      return c.json({ data: label }, 200);
     },
   );
 
@@ -169,7 +175,7 @@ export const createLabelsApi = (useCases: LabelUseCases): Hono => {
       tags: ["Labels"],
     }),
     async (c) => {
-      unwrap(await useCases.deleteLabel(c.req.valid("param").id));
+      unwrap(await useCases.deleteLabel([c.req.valid("param").id]));
       return c.body(null, 204);
     },
   );

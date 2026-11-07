@@ -258,8 +258,9 @@ describe("Labels API (end to end)", () => {
       expect((await request(`${labelsPath}/${label.id}`)).status).toBe(404);
     });
 
-    test("returns 404 when deleting an unknown label", async () => {
-      expect((await request(`${labelsPath}/missing`, { method: "DELETE" })).status).toBe(404);
+    test("returns success when deleting an unknown label", async () => {
+      expect((await request(`${labelsPath}/missing`, { method: "DELETE" })).status).toBe(204);
+      expect((await request(`${labelsPath}/missing`, { method: "DELETE" })).status).toBe(204);
     });
   });
 });
