@@ -42,6 +42,24 @@ void (async () => {
       runOnStartup: config.jobs.labels.runOnStartup,
       type: "sync-labels",
     },
+    {
+      cron: config.jobs.backfillPrints.cron,
+      retry: config.jobs.backfillPrints.retry,
+      run: async () => {
+        const result = await application.useCases.prints.backfillPrints();
+        if (!result.isOk) return err(result.error);
+        return ok({
+          updated: result.value.map((p) => ({
+            id: p.id,
+            label: p.label,
+            printer: p.printer,
+            triggeredBy: p.triggeredBy,
+          })),
+        });
+      },
+      runOnStartup: config.jobs.backfillPrints.runOnStartup,
+      type: "backfill-prints",
+    },
   ];
   const jobsWorker = startJobsWorker(application.useCases.jobs, schedules);
 

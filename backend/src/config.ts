@@ -26,6 +26,7 @@ export interface Config {
   jobs: {
     labels: ScheduledJobConfig;
     printers: ScheduledJobConfig;
+    backfillPrints: ScheduledJobConfig;
     workerPort: number;
   };
   logger: {
@@ -77,6 +78,16 @@ export const config: Config = {
     user: getOptionalEnvVar("DATABASE_USER", "labeling"),
   },
   jobs: {
+    backfillPrints: {
+      cron: getOptionalEnvVar("JOBS_BACKFILL_PRINTS_CRON", "* * * * *"),
+      retry: {
+        initialDelayMs: getOptionalEnvVar("JOBS_BACKFILL_PRINTS_RETRY_INITIAL_DELAY_MS", 1000, Number),
+        maxAttempts: getOptionalEnvVar("JOBS_BACKFILL_PRINTS_RETRY_MAX_ATTEMPTS", 5, Number),
+        maxDelayMs: getOptionalEnvVar("JOBS_BACKFILL_PRINTS_RETRY_MAX_DELAY_MS", 60_000, Number),
+        multiplier: getOptionalEnvVar("JOBS_BACKFILL_PRINTS_RETRY_MULTIPLIER", 2, Number),
+      },
+      runOnStartup: getOptionalEnvVar("JOBS_BACKFILL_PRINTS_RUN_ON_STARTUP", false, booleanMapper),
+    },
     labels: {
       cron: getOptionalEnvVar("JOBS_LABELS_CRON", "*/5 * * * *"),
       retry: {
