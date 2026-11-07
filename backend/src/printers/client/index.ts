@@ -1,2 +1,2 @@
 export type { GetPrintersRequest, GetPrintersResponse, PrintersClient } from "./interface.ts";
-export type { MockClient } from "./mock.ts";
+export { MockClient } from "./mock.ts";

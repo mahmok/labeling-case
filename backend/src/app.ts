@@ -2,9 +2,11 @@ import { Hono } from "hono";
 import { openAPIRouteHandler } from "hono-openapi";
 import { createDatabase, type Database } from "./db";
 import { createLabelsApi } from "./labels";
+import { MockClient as MockLabelsClient } from "./labels/client/mock.ts";
 import { fromDialect as labelsFromDialect } from "./labels/repository";
 import { createLabelUseCases, type Dependencies as LabelDependencies } from "./labels/use-cases.ts";
 import { createPrintersApi } from "./printers";
+import { MockClient as MockPrintersClient } from "./printers/client/mock.ts";
 import { fromDialect as printersFromDialect } from "./printers/repository";
 import { createPrinterUseCases, type Dependencies } from "./printers/use-cases.ts";
 
@@ -29,12 +31,12 @@ export const createApp = async (database?: Database): Promise<App> => {
 
   switch (db.dialect) {
     case "postgresql":
-      v1.route("/printers", createPrintersRouter({ repository: await printersFromDialect("postgresql"), uow: db.uow }));
-      v1.route("/labels", createLabelsRouter({ repository: await labelsFromDialect("postgresql"), uow: db.uow }));
+      v1.route("/printers", createPrintersRouter({ client: MockPrintersClient, repository: await printersFromDialect("postgresql"), uow: db.uow }));
+      v1.route("/labels", createLabelsRouter({ client: MockLabelsClient, repository: await labelsFromDialect("postgresql"), uow: db.uow }));
       break;
     case "sqlite":
-      v1.route("/printers", createPrintersRouter({ repository: await printersFromDialect("sqlite"), uow: db.uow }));
-      v1.route("/labels", createLabelsRouter({ repository: await labelsFromDialect("sqlite"), uow: db.uow }));
+      v1.route("/printers", createPrintersRouter({ client: MockPrintersClient, repository: await printersFromDialect("sqlite"), uow: db.uow }));
+      v1.route("/labels", createLabelsRouter({ client: MockLabelsClient, repository: await labelsFromDialect("sqlite"), uow: db.uow }));
       break;
   }
 

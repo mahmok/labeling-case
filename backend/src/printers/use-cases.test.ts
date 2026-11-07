@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { config } from "../config.ts";
-import { isNotFoundError } from "../utils/errors.ts";
 import { createDatabase } from "../db";
+import { isNotFoundError } from "../utils/errors.ts";
+import { MockClient } from "./client";
 import type { Printer } from "./domain.ts";
 import { fromDialect } from "./repository";
 import type { CreatePrinterInput } from "./repository/interface.ts";
@@ -29,7 +30,7 @@ describe("Printer use cases", () => {
     const database = await createDatabase();
     if (database.dialect !== "sqlite") throw new Error("Expected SQLite database");
     const repository = await fromDialect("sqlite");
-    useCases = createPrinterUseCases({ repository, uow: database.uow });
+    useCases = createPrinterUseCases({ client: MockClient, repository, uow: database.uow });
     closeDatabase = database.close;
   });
 
@@ -49,6 +50,10 @@ describe("Printer use cases", () => {
     expect(result.isOk).toBe(true);
     if (result.isOk)
       expect(result.value).toMatchObject({ name: `printer-${marker}`, serialNumber: `serial-${marker}` });
+  });
+
+  test("getVendorPrinters returns results from the injected client", async () => {
+    expect(await useCases.getVendorPrinters()).toEqual(await MockClient.get({}));
   });
 
   test("getPrinters returns repository matches", async () => {

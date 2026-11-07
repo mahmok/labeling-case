@@ -1,7 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { config } from "../config.ts";
-import { isNotFoundError } from "../utils/errors.ts";
 import { createDatabase } from "../db";
+import { isNotFoundError } from "../utils/errors.ts";
+import { MockClient } from "./client";
 import type { Label } from "./domain.ts";
 import { fromDialect } from "./repository";
 import type { CreateLabelInput } from "./repository/interface.ts";
@@ -29,7 +30,7 @@ describe("Label use cases", () => {
     const database = await createDatabase();
     if (database.dialect !== "sqlite") throw new Error("Expected SQLite database");
     const repository = await fromDialect("sqlite");
-    useCases = createLabelUseCases({ repository, uow: database.uow });
+    useCases = createLabelUseCases({ client: MockClient, repository, uow: database.uow });
     closeDatabase = database.close;
   });
 
@@ -55,6 +56,10 @@ describe("Label use cases", () => {
         version: `v-${marker}`,
       });
     }
+  });
+
+  test("getVendorLabels returns results from the injected client", async () => {
+    expect(await useCases.getVendorLabels()).toEqual(await MockClient.get({}));
   });
 
   test("getLabels returns repository matches", async () => {

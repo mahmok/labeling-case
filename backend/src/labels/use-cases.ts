@@ -2,9 +2,11 @@ import type { UnitOfWork } from "../db/unit-of-work.ts";
 import { notFoundError } from "../utils/errors.ts";
 import { err, ok, type Result } from "../utils/result.ts";
 import type { Label } from "./domain.ts";
+import type { GetLabelsResponse, LabelsClient } from "./client/interface.ts";
 import type { CreateLabelInput, GetLabelsInput, LabelsRepository, UpdateLabelInput } from "./repository/interface.ts";
 
 export type Dependencies<T> = {
+  client: LabelsClient;
   uow: UnitOfWork<T>;
   repository: LabelsRepository<T>;
 };
@@ -14,8 +16,12 @@ export type LabelUseCases = {
   deleteLabel: (id: string) => Promise<Result<void, Error>>;
   getLabel: (id: string) => Promise<Result<Label, Error>>;
   getLabels: (input: GetLabelsInput) => Promise<Result<Label[], Error>>;
+  getVendorLabels: () => Promise<Result<GetLabelsResponse, Error>>;
   updateLabel: (input: UpdateLabelInput) => Promise<Result<Label, Error>>;
 };
+
+export const getVendorLabels = (client: LabelsClient) => (): Promise<Result<GetLabelsResponse, Error>> =>
+  client.get({});
 
 export const getLabels =
   <T>({ repository, uow }: Dependencies<T>) =>
@@ -67,5 +73,6 @@ export const createLabelUseCases = <T>(deps: Dependencies<T>): LabelUseCases => 
   deleteLabel: deleteLabel(deps),
   getLabel: getLabel(deps),
   getLabels: getLabels(deps),
+  getVendorLabels: getVendorLabels(deps.client),
   updateLabel: updateLabel(deps),
 });
