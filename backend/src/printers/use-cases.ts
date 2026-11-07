@@ -13,6 +13,14 @@ export type Dependencies<T> = {
   repository: PrintersRepository<T>;
 };
 
+export type PrinterUseCases = {
+  createPrinter: (input: CreatePrinterInput) => Promise<Result<Printer, Error>>;
+  deletePrinter: (id: string) => Promise<Result<void, Error>>;
+  getPrinter: (id: string) => Promise<Result<Printer, Error>>;
+  getPrinters: (input: GetPrintersInput) => Promise<Result<Printer[], Error>>;
+  updatePrinter: (input: UpdatePrinterInput) => Promise<Result<Printer, Error>>;
+};
+
 export class PrinterNotFoundError extends Error {
   constructor(id: string) {
     super(`Printer ${id} was not found`);
@@ -67,3 +75,11 @@ export const deletePrinter = <T>({ repository, uow }: Dependencies<T>) => {
       return repository.delete([id], tx);
     });
 };
+
+export const createPrinterUseCases = <T>(deps: Dependencies<T>): PrinterUseCases => ({
+  createPrinter: createPrinter(deps),
+  deletePrinter: deletePrinter(deps),
+  getPrinter: getPrinter(deps),
+  getPrinters: getPrinters(deps),
+  updatePrinter: updatePrinter(deps),
+});

@@ -6,15 +6,7 @@ import { describeRoute, openAPIRouteHandler, resolver, validator } from "hono-op
 import { z } from "zod";
 import type { Result } from "../utils/result.ts";
 import type { GetPrintersInput } from "./repository/interface.ts";
-import {
-  createPrinter,
-  type Dependencies,
-  deletePrinter,
-  getPrinter,
-  getPrinters,
-  PrinterNotFoundError,
-  updatePrinter,
-} from "./use-cases.ts";
+import { PrinterNotFoundError, type PrinterUseCases } from "./use-cases.ts";
 
 const PrinterSchema = z.object({
   createdAt: z.iso.datetime(),
@@ -108,12 +100,7 @@ const unwrap = <T>(result: Result<T, Error>): T => {
   });
 };
 
-export const createPrintersApi = <T>(deps: Dependencies<T>): Hono => {
-  const listPrinters = getPrinters(deps);
-  const findPrinter = getPrinter(deps);
-  const addPrinter = createPrinter(deps);
-  const changePrinter = updatePrinter(deps);
-  const removePrinter = deletePrinter(deps);
+export const createPrintersApi = (useCases: PrinterUseCases): Hono => {
   const app = new Hono();
 
   app.onError((failure, c): Response => {
@@ -152,7 +139,7 @@ export const createPrintersApi = <T>(deps: Dependencies<T>): Hono => {
         ...(limit === undefined ? {} : { pagination: { limit, offset: offset ?? 0 } }),
         ...(sort === undefined ? {} : { sorting: sort }),
       };
-      return c.json({ data: unwrap(await listPrinters(input)) }, 200);
+      return c.json({ data: unwrap(await useCases.getPrinters(input)) }, 200);
     },
   );
 
@@ -167,7 +154,7 @@ export const createPrintersApi = <T>(deps: Dependencies<T>): Hono => {
       summary: "Get a printer",
       tags: ["Printers"],
     }),
-    async (c) => c.json({ data: unwrap(await findPrinter(c.req.valid("param").id)) }, 200),
+    async (c) => c.json({ data: unwrap(await useCases.getPrinter(c.req.valid("param").id)) }, 200),
   );
 
   app.post(
@@ -181,7 +168,7 @@ export const createPrintersApi = <T>(deps: Dependencies<T>): Hono => {
       summary: "Create a printer",
       tags: ["Printers"],
     }),
-    async (c) => c.json({ data: unwrap(await addPrinter(c.req.valid("json"))) }, 201),
+    async (c) => c.json({ data: unwrap(await useCases.createPrinter(c.req.valid("json"))) }, 201),
   );
 
   app.patch(
@@ -198,7 +185,7 @@ export const createPrintersApi = <T>(deps: Dependencies<T>): Hono => {
     }),
     async (c) => {
       const { id } = c.req.valid("param");
-      return c.json({ data: unwrap(await changePrinter({ id, ...c.req.valid("json") })) }, 200);
+      return c.json({ data: unwrap(await useCases.updatePrinter({ id, ...c.req.valid("json") })) }, 200);
     },
   );
 
@@ -211,7 +198,7 @@ export const createPrintersApi = <T>(deps: Dependencies<T>): Hono => {
       tags: ["Printers"],
     }),
     async (c) => {
-      unwrap(await removePrinter(c.req.valid("param").id));
+      unwrap(await useCases.deletePrinter(c.req.valid("param").id));
       return c.body(null, 204);
     },
   );

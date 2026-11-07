@@ -11,6 +11,7 @@ import { createPrintersApi } from "../../../src/printers";
 import type { Printer } from "../../../src/printers/domain.ts";
 import type { CreatePrinterInput } from "../../../src/printers/repository/interface.ts";
 import { PostgresPrintersRepository } from "../../../src/printers/repository/postgres.ts";
+import { createPrinterUseCases } from "../../../src/printers/use-cases.ts";
 
 type TestDatabase = NodePgDatabase<typeof schema>;
 type TestTransaction = Parameters<Parameters<TestDatabase["transaction"]>[0]>[0];
@@ -21,7 +22,8 @@ let testDb: TestDatabase;
 
 const unitOfWork = createUnitOfWork<TestTransaction>((operation) => testDb.transaction(operation));
 const closeTestDatabase = (): Promise<void> => (pool ? pool.end() : Promise.resolve());
-const printersApi = createPrintersApi({ repository: PostgresPrintersRepository, uow: unitOfWork });
+const printersUseCases = createPrinterUseCases({ repository: PostgresPrintersRepository, uow: unitOfWork });
+const printersApi = createPrintersApi(printersUseCases);
 
 const createPrinter = async (overrides: Partial<CreatePrinterInput> = {}): Promise<Printer> => {
   const unique = crypto.randomUUID();
