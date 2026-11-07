@@ -32,7 +32,7 @@ services:
 
   migrate:
     <<: *backend-service
-    command: ["backend:db:migrate"]
+    command: ["migrate.ts"]
     environment: *backend-environment
     depends_on:
       db:
@@ -40,7 +40,7 @@ services:
 
   api:
     <<: *backend-service
-    command: ["backend:api:start"]
+    command: ["index.api.ts"]
     environment:
       <<: *backend-environment
       PORT: "3000"
@@ -52,7 +52,7 @@ services:
 
   worker:
     <<: *backend-service
-    command: ["backend:worker:start"]
+    command: ["index.worker.ts"]
     environment:
       <<: *backend-environment
       JOBS_WORKER_PORT: "3001"
