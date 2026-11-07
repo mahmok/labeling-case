@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { config } from "../config.ts";
+import { isNotFoundError } from "../utils/errors.ts";
 import { createDatabase } from "../db";
 import type { Label } from "./domain.ts";
 import { fromDialect } from "./repository";
 import type { CreateLabelInput } from "./repository/interface.ts";
-import { createLabelUseCases, LabelNotFoundError, type LabelUseCases } from "./use-cases.ts";
+import { createLabelUseCases, type LabelUseCases } from "./use-cases.ts";
 
 let useCases: LabelUseCases;
 let closeDatabase: () => Promise<void> = async () => {};
@@ -74,11 +75,11 @@ describe("Label use cases", () => {
     expect(result).toEqual({ isOk: true, value: label });
   });
 
-  test("getLabel returns LabelNotFoundError for an unknown ID", async () => {
+  test("getLabel returns a not-found error for an unknown ID", async () => {
     const result = await useCases.getLabel(`missing-${crypto.randomUUID()}`);
 
     expect(result.isOk).toBe(false);
-    if (!result.isOk) expect(result.error).toBeInstanceOf(LabelNotFoundError);
+    if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
   });
 
   test("updateLabel persists mutable fields", async () => {
@@ -90,11 +91,11 @@ describe("Label use cases", () => {
     if (result.isOk) expect(result.value).toMatchObject({ id: label.id, isPrimary: true, nickname });
   });
 
-  test("updateLabel returns LabelNotFoundError for an unknown ID", async () => {
+  test("updateLabel returns a not-found error for an unknown ID", async () => {
     const result = await useCases.updateLabel({ id: `missing-${crypto.randomUUID()}`, nickname: "unknown" });
 
     expect(result.isOk).toBe(false);
-    if (!result.isOk) expect(result.error).toBeInstanceOf(LabelNotFoundError);
+    if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
   });
 
   test("deleteLabel removes the label", async () => {
@@ -105,10 +106,10 @@ describe("Label use cases", () => {
     expect(await useCases.getLabels({ id: [label.id] })).toEqual({ isOk: true, value: [] });
   });
 
-  test("deleteLabel returns LabelNotFoundError for an unknown ID", async () => {
+  test("deleteLabel returns a not-found error for an unknown ID", async () => {
     const result = await useCases.deleteLabel(`missing-${crypto.randomUUID()}`);
 
     expect(result.isOk).toBe(false);
-    if (!result.isOk) expect(result.error).toBeInstanceOf(LabelNotFoundError);
+    if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
   });
 });

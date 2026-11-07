@@ -1,4 +1,5 @@
 import type { UnitOfWork } from "../db/unit-of-work.ts";
+import { notFoundError } from "../utils/errors.ts";
 import { err, ok, type Result } from "../utils/result.ts";
 import type { Printer } from "./domain.ts";
 import type {
@@ -21,13 +22,6 @@ export type PrinterUseCases = {
   updatePrinter: (input: UpdatePrinterInput) => Promise<Result<Printer, Error>>;
 };
 
-export class PrinterNotFoundError extends Error {
-  constructor(id: string) {
-    super(`Printer ${id} was not found`);
-    this.name = "PrinterNotFoundError";
-  }
-}
-
 export const getPrinters = <T>({ repository, uow }: Dependencies<T>) => {
   return (input: GetPrintersInput): Promise<Result<Printer[], Error>> => uow.execute((tx) => repository.get(input, tx));
 };
@@ -39,7 +33,7 @@ export const getPrinter = <T>({ repository, uow }: Dependencies<T>) => {
       if (!result.isOk) return result;
 
       const [printer] = result.value;
-      return printer ? ok(printer) : err(new PrinterNotFoundError(id));
+      return printer ? ok(printer) : err(notFoundError("Printer", id));
     });
 };
 
@@ -61,7 +55,7 @@ export const updatePrinter = <T>({ repository, uow }: Dependencies<T>) => {
       if (!result.isOk) return result;
 
       const [printer] = result.value;
-      return printer ? ok(printer) : err(new PrinterNotFoundError(input.id));
+      return printer ? ok(printer) : err(notFoundError("Printer", input.id));
     });
 };
 
@@ -70,7 +64,7 @@ export const deletePrinter = <T>({ repository, uow }: Dependencies<T>) => {
     uow.execute(async (tx) => {
       const existing = await repository.get({ id: [id] }, tx);
       if (!existing.isOk) return existing;
-      if (existing.value.length === 0) return err(new PrinterNotFoundError(id));
+      if (existing.value.length === 0) return err(notFoundError("Printer", id));
 
       return repository.delete([id], tx);
     });

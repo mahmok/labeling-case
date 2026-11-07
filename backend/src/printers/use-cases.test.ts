@@ -1,10 +1,11 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { config } from "../config.ts";
+import { isNotFoundError } from "../utils/errors.ts";
 import { createDatabase } from "../db";
 import type { Printer } from "./domain.ts";
 import { fromDialect } from "./repository";
 import type { CreatePrinterInput } from "./repository/interface.ts";
-import { createPrinterUseCases, PrinterNotFoundError, type PrinterUseCases } from "./use-cases.ts";
+import { createPrinterUseCases, type PrinterUseCases } from "./use-cases.ts";
 
 let useCases: PrinterUseCases;
 let closeDatabase: () => Promise<void> = async () => {};
@@ -68,11 +69,11 @@ describe("Printer use cases", () => {
     expect(result).toEqual({ isOk: true, value: printer });
   });
 
-  test("getPrinter returns PrinterNotFoundError for an unknown ID", async () => {
+  test("getPrinter returns a not-found error for an unknown ID", async () => {
     const result = await useCases.getPrinter(`missing-${crypto.randomUUID()}`);
 
     expect(result.isOk).toBe(false);
-    if (!result.isOk) expect(result.error).toBeInstanceOf(PrinterNotFoundError);
+    if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
   });
 
   test("updatePrinter persists mutable fields", async () => {
@@ -84,11 +85,11 @@ describe("Printer use cases", () => {
     if (result.isOk) expect(result.value).toMatchObject({ id: printer.id, nickname });
   });
 
-  test("updatePrinter returns PrinterNotFoundError for an unknown ID", async () => {
+  test("updatePrinter returns a not-found error for an unknown ID", async () => {
     const result = await useCases.updatePrinter({ id: `missing-${crypto.randomUUID()}`, nickname: "unknown" });
 
     expect(result.isOk).toBe(false);
-    if (!result.isOk) expect(result.error).toBeInstanceOf(PrinterNotFoundError);
+    if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
   });
 
   test("deletePrinter removes the printer", async () => {
@@ -99,10 +100,10 @@ describe("Printer use cases", () => {
     expect(await useCases.getPrinters({ id: [printer.id] })).toEqual({ isOk: true, value: [] });
   });
 
-  test("deletePrinter returns PrinterNotFoundError for an unknown ID", async () => {
+  test("deletePrinter returns a not-found error for an unknown ID", async () => {
     const result = await useCases.deletePrinter(`missing-${crypto.randomUUID()}`);
 
     expect(result.isOk).toBe(false);
-    if (!result.isOk) expect(result.error).toBeInstanceOf(PrinterNotFoundError);
+    if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
   });
 });

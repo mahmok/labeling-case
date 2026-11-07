@@ -4,9 +4,10 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ResponsesWithResolver } from "hono-openapi";
 import { describeRoute, resolver, validator } from "hono-openapi";
 import { type ZodString, z } from "zod";
+import { isNotFoundError } from "../utils/errors.ts";
 import type { Result } from "../utils/result.ts";
 import type { GetLabelsInput } from "./repository/interface.ts";
-import { LabelNotFoundError, type LabelUseCases } from "./use-cases.ts";
+import type { LabelUseCases } from "./use-cases.ts";
 
 const LabelSchema = z.object({
   createdAt: z.iso.datetime(),
@@ -89,7 +90,7 @@ const validationHook = (result: ValidationResult, c: Context): Response | undefi
 
 const unwrap = <T>(result: Result<T, Error>): T => {
   if (result.isOk) return result.value;
-  const notFound = result.error instanceof LabelNotFoundError;
+  const notFound = isNotFoundError(result.error);
   throw new HTTPException(notFound ? 404 : 500, {
     message: notFound ? result.error.message : "Internal server error",
   });

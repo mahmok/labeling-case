@@ -1,4 +1,5 @@
 import type { UnitOfWork } from "../db/unit-of-work.ts";
+import { notFoundError } from "../utils/errors.ts";
 import { err, ok, type Result } from "../utils/result.ts";
 import type { Label } from "./domain.ts";
 import type { CreateLabelInput, GetLabelsInput, LabelsRepository, UpdateLabelInput } from "./repository/interface.ts";
@@ -16,13 +17,6 @@ export type LabelUseCases = {
   updateLabel: (input: UpdateLabelInput) => Promise<Result<Label, Error>>;
 };
 
-export class LabelNotFoundError extends Error {
-  constructor(id: string) {
-    super(`Label ${id} was not found`);
-    this.name = "LabelNotFoundError";
-  }
-}
-
 export const getLabels =
   <T>({ repository, uow }: Dependencies<T>) =>
   (input: GetLabelsInput): Promise<Result<Label[], Error>> =>
@@ -35,7 +29,7 @@ export const getLabel =
       const result = await repository.get({ id: [id] }, tx);
       if (!result.isOk) return result;
       const [label] = result.value;
-      return label ? ok(label) : err(new LabelNotFoundError(id));
+      return label ? ok(label) : err(notFoundError("Label", id));
     });
 
 export const createLabel =
@@ -55,7 +49,7 @@ export const updateLabel =
       const result = await repository.update([input], tx);
       if (!result.isOk) return result;
       const [label] = result.value;
-      return label ? ok(label) : err(new LabelNotFoundError(input.id));
+      return label ? ok(label) : err(notFoundError("Label", input.id));
     });
 
 export const deleteLabel =
@@ -64,7 +58,7 @@ export const deleteLabel =
     uow.execute(async (tx) => {
       const existing = await repository.get({ id: [id] }, tx);
       if (!existing.isOk) return existing;
-      if (existing.value.length === 0) return err(new LabelNotFoundError(id));
+      if (existing.value.length === 0) return err(notFoundError("Label", id));
       return repository.delete([id], tx);
     });
 
