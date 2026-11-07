@@ -1,6 +1,7 @@
 import { createUnitOfWork } from "../unit-of-work.ts";
-import { db } from "./sqlite.ts";
+import type { SQLiteDatabase } from "./sqlite.ts";
 
-export type SQLiteTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type SQLiteTransaction = Parameters<Parameters<SQLiteDatabase["transaction"]>[0]>[0];
 
-export const SQLiteUnitOfWork = createUnitOfWork<SQLiteTransaction>((operation) => db.transaction(operation));
+export const createSQLiteUnitOfWork = (db: SQLiteDatabase) =>
+  createUnitOfWork<SQLiteTransaction>((operation) => db.transaction(operation));
