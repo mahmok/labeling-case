@@ -1,4 +1,5 @@
 import { createDatabase, type Database } from "./db";
+import { createJobUseCases, type JobsUseCases, fromDialect as jobsFromDialect } from "./jobs";
 import { createLabelUseCases, type LabelUseCases } from "./labels";
 import { MockClient as MockLabelsClient } from "./labels/client/mock.ts";
 import { fromDialect as labelsFromDialect } from "./labels/repository";
@@ -7,6 +8,7 @@ import { MockClient as MockPrintersClient } from "./printers/client/mock.ts";
 import { fromDialect as printersFromDialect } from "./printers/repository";
 
 export type ApplicationUseCases = {
+  jobs: JobsUseCases;
   labels: LabelUseCases;
   printers: PrinterUseCases;
 };
@@ -20,6 +22,7 @@ const createUseCases = async (db: Database): Promise<ApplicationUseCases> => {
   switch (db.dialect) {
     case "postgresql":
       return {
+        jobs: createJobUseCases({ repository: await jobsFromDialect("postgresql"), uow: db.uow }),
         labels: createLabelUseCases({
           client: MockLabelsClient,
           repository: await labelsFromDialect("postgresql"),
@@ -33,6 +36,7 @@ const createUseCases = async (db: Database): Promise<ApplicationUseCases> => {
       };
     case "sqlite":
       return {
+        jobs: createJobUseCases({ repository: await jobsFromDialect("sqlite"), uow: db.uow }),
         labels: createLabelUseCases({
           client: MockLabelsClient,
           repository: await labelsFromDialect("sqlite"),

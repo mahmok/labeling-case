@@ -28,9 +28,7 @@ export const PostgresJobsRepository: JobsRepository<PostgresTransaction> = {
       const [claimed] = await tx
         .update(jobsTable)
         .set({ attempts: sql`${jobsTable.attempts} + 1`, status: "in_progress" })
-        .where(
-          and(eq(jobsTable.id, candidate.id), eq(jobsTable.status, "pending"), eq(jobsTable.type, type)),
-        )
+        .where(and(eq(jobsTable.id, candidate.id), eq(jobsTable.status, "pending"), eq(jobsTable.type, type)))
         .returning();
       return ok(claimed ?? null);
     } catch (error) {
@@ -85,7 +83,7 @@ export const PostgresJobsRepository: JobsRepository<PostgresTransaction> = {
       const ids = input.map(({ id }) => id);
       if (new Set(ids).size !== ids.length) return err(new Error("Duplicate job IDs"));
 
-      const fields = ["status", "result", "error"] as const;
+      const fields = ["attempts", "status", "result", "error"] as const;
       const updates = Object.fromEntries(
         fields
           .filter((field) => input.some((item) => item[field] !== undefined))

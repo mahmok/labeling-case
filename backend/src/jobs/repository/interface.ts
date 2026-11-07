@@ -15,6 +15,7 @@ export type GetJobsInput = {
 
 export type UpdateJobInput = {
   id: string;
+  attempts?: number;
   status?: JobStatus;
   result?: JobResult | null;
   error?: string | null;

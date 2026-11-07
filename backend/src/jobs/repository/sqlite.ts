@@ -72,7 +72,7 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
       const ids = input.map(({ id }) => id);
       if (new Set(ids).size !== ids.length) return err(new Error("Duplicate job IDs"));
 
-      const fields = ["status", "result", "error"] as const;
+      const fields = ["attempts", "status", "result", "error"] as const;
       const updated: Job[] = [];
       for (const item of input) {
         const changes = Object.fromEntries(
