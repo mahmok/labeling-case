@@ -6,7 +6,7 @@ import { DataGrid } from "../../lib/components/data-grid.tsx";
 import { FormModal } from "../../lib/components/form-modal.tsx";
 import { Page } from "../../lib/components/page.tsx";
 import { sortingToQuery, type tableFeatures, useServerTableState } from "../../lib/table-state.ts";
-import type { Job, JobListParams, JobSortKey, JobStatus } from "../api.tsx";
+import type { Job, JobListParams, JobSortKey, JobStatus, JobType } from "../api.tsx";
 import { useCreateJob, useJobs } from "../api.tsx";
 
 const EMPTY_JOBS: Job[] = [];
@@ -64,8 +64,9 @@ export const JobsPage = (): JSX.Element => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const type = formData.get("type");
-    if (type !== "sync-printers" && type !== "sync-labels") return;
-    const createdJob = await createJobMutation.mutateAsync({ type });
+    const validJobTypes = new Set(["sync-printers", "sync-labels", "backfill-prints"]);
+    if (!(type && validJobTypes.has(type.toString()))) return;
+    const createdJob = await createJobMutation.mutateAsync({ type: type as JobType });
     if (createdJob.isOk) {
       setIsDialogOpen(false);
       setSubmitError(undefined);
@@ -113,6 +114,7 @@ export const JobsPage = (): JSX.Element => {
           <select className="select select-bordered w-full" defaultValue="sync-printers" name="type" required>
             <option value="sync-printers">Synchronize printers</option>
             <option value="sync-labels">Synchronize labels</option>
+            <option value="backfill-prints">Backfill prints</option>
           </select>
         </fieldset>
       </FormModal>

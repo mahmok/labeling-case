@@ -9,7 +9,7 @@ import type { Job } from "./domain.ts";
 import type { JobSortKey } from "./repository/interface.ts";
 import type { JobsUseCases } from "./use-cases.ts";
 
-const JobTypeSchema = z.enum(["sync-printers", "sync-labels"]);
+const JobTypeSchema = z.enum(["sync-printers", "sync-labels", "backfill-prints"]);
 const JobIdSchema = z.uuid();
 const JobSchema = z.object({
   attempts: z.number().int().nonnegative(),
