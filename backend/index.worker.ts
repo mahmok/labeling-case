@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { createApplication } from "./src/application.ts";
 import { config } from "./src/config.ts";
 import { type ScheduledJob, startJobsWorker } from "./src/jobs";
@@ -9,6 +10,8 @@ void (async () => {
   logger.info({ msg: "starting worker service...", port: config.jobs.workerPort });
   const application = await createApplication();
   const api = new Hono();
+  // TODO: Remove later
+  api.use("*", cors());
   api.get("/health", (c) => c.json({ status: "running" }));
 
   const schedules: ScheduledJob[] = [
