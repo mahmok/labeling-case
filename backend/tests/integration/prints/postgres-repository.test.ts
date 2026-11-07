@@ -7,7 +7,7 @@ import { createDatabase } from "../../../src/db";
 import type { PostgresTransaction } from "../../../src/db/postgres/postgres.ts";
 import type { UnitOfWork } from "../../../src/db/unit-of-work.ts";
 import { PostgresLabelsRepository } from "../../../src/labels/repository/postgres.ts";
-import type { Print } from "../../../src/prints/domain.ts";
+import type { Print } from "../../../src/prints";
 import type { CreatePrintInput, GetPrintsInput } from "../../../src/prints/repository/interface.ts";
 import { PostgresPrintsRepository } from "../../../src/prints/repository/postgres.ts";
 
@@ -96,6 +96,34 @@ describe("PostgresPrintsRepository", () => {
 
     expect(print.printer).toEqual({ id: null, name: printerName });
     expect(await getPrints({ id: [print.id] })).toEqual([print]);
+  });
+
+  test("backfills null printer IDs in a batch", async () => {
+    const first = await createPrint();
+    const second = await createPrint();
+    const firstPrinterId = crypto.randomUUID();
+    const secondPrinterId = crypto.randomUUID();
+
+    const result = await unitOfWork.execute((tx) =>
+      PostgresPrintsRepository.updatePrinterIds(
+        [
+          { id: first.id, printerId: firstPrinterId },
+          { id: second.id, printerId: secondPrinterId },
+        ],
+        tx,
+      ),
+    );
+
+    expect(result.isOk).toBe(true);
+    if (result.isOk) {
+      expect(new Map(result.value.map(({ id, printer }) => [id, printer.id]))).toEqual(
+        new Map([
+          [first.id, firstPrinterId],
+          [second.id, secondPrinterId],
+        ]),
+      );
+    }
+    expect(await getPrints({ id: [first.id, second.id], printerIdIsNull: true })).toEqual([]);
   });
 
   test("sorts, paginates, and deletes print records", async () => {

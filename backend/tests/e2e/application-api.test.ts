@@ -61,6 +61,32 @@ describe("Application API (end to end)", () => {
     if (labels.isOk) expect(labels.value[0]).toEqual({ id: "lbl-001", name: "Fragile", version: 1 });
   });
 
+  test("wires print lookups through the printer and label use cases", async () => {
+    const marker = crypto.randomUUID();
+    const label = await useCases.labels.createLabel([
+      { id: `print-label-${marker}`, isPrimary: false, name: `Shipping ${marker}`, version: "v1" },
+    ]);
+    const printer = await useCases.printers.createPrinter([
+      { location: "", model: "model", name: `Print printer ${marker}`, serialNumber: "" },
+    ]);
+    if (!(label.isOk && printer.isOk)) throw new Error("Could not create lookup fixtures");
+    const [createdLabel] = label.value;
+    const [createdPrinter] = printer.value;
+    if (!(createdLabel && createdPrinter)) throw new Error("Lookup fixtures were not created");
+
+    const print = await useCases.prints.printWithLocalLookup({
+      labelId: createdLabel.id,
+      printerName: createdPrinter.name,
+      triggeredBy: "application-test",
+    });
+
+    expect(print.isOk).toBe(true);
+    if (print.isOk) {
+      expect(print.value.label).toMatchObject({ id: createdLabel.id, name: `Shipping ${marker}`, version: "v1" });
+      expect(print.value.printer).toMatchObject({ id: createdPrinter.id, name: `Print printer ${marker}` });
+    }
+  });
+
   test("serves one OpenAPI document for all resources at the API root", async () => {
     const response = await request("/openapi.json");
     const document = (await response.json()) as { paths: Record<string, unknown> };

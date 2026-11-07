@@ -1,18 +1,21 @@
-import { and, asc, desc, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, ilike, inArray, isNotNull, isNull, or, type SQL, sql } from "drizzle-orm";
 import type { PostgresTransaction } from "../../db/postgres/postgres.ts";
 import { labelsTable } from "../../labels/schema/postgres.ts";
 import { asError, err, ok, type Result } from "../../utils/result.ts";
 import type { Print } from "../domain.ts";
 import { printsTable } from "../schema/postgres.ts";
-import type { CreatePrintInput, GetPrintsInput, PrintsRepository } from "./interface.ts";
+import type { CreatePrintInput, GetPrintsInput, PrintsRepository, UpdatePrintPrinterIdInput } from "./interface.ts";
 
 const sortableColumns = {
+  createdAt: printsTable.createdAt,
   id: printsTable.id,
   labelId: printsTable.labelId,
   labelName: labelsTable.name,
   labelVersion: labelsTable.version,
+  printerId: printsTable.printerId,
   printerName: printsTable.printerName,
   triggeredBy: printsTable.triggeredBy,
+  updatedAt: printsTable.updatedAt,
 } as const;
 
 type PrintRow = {
@@ -39,6 +42,9 @@ const toPrint = (row: PrintRow): Print => ({
 const selectPrints = async (tx: PostgresTransaction, input: GetPrintsInput): Promise<PrintRow[]> => {
   const filters: SQL[] = [
     ...(input.id?.length ? [inArray(printsTable.id, input.id)] : []),
+    ...(input.printerId?.length ? [inArray(printsTable.printerId, input.printerId)] : []),
+    ...(input.printerIdIsNull === true ? [isNull(printsTable.printerId)] : []),
+    ...(input.printerIdIsNull === false ? [isNotNull(printsTable.printerId)] : []),
     ...(input.triggeredBy?.length ? [inArray(printsTable.triggeredBy, input.triggeredBy)] : []),
     ...(input.printerName?.length ? [inArray(printsTable.printerName, input.printerName)] : []),
     ...(input.labelId?.length ? [inArray(printsTable.labelId, input.labelId)] : []),
@@ -119,6 +125,29 @@ export const PostgresPrintsRepository: PrintsRepository<PostgresTransaction> = {
   async get(input: GetPrintsInput, tx: PostgresTransaction): Promise<Result<Print[], Error>> {
     try {
       return ok((await selectPrints(tx, input)).map(toPrint));
+    } catch (error) {
+      return err(asError(error));
+    }
+  },
+
+  async updatePrinterIds(input: UpdatePrintPrinterIdInput[], tx: PostgresTransaction): Promise<Result<Print[], Error>> {
+    try {
+      if (input.length === 0) return ok([]);
+      const ids = input.map(({ id }) => id);
+      if (new Set(ids).size !== ids.length) return err(new Error("Duplicate print IDs"));
+
+      const cases = input.map(({ id, printerId }) => sql`WHEN ${printsTable.id} = ${id} THEN ${printerId}`);
+      const updated = await tx
+        .update(printsTable)
+        .set({
+          printerId: sql`CASE ${sql.join(cases, sql` `)} ELSE ${printsTable.printerId} END`,
+          updatedAt: new Date(),
+        })
+        .where(and(inArray(printsTable.id, ids), isNull(printsTable.printerId)))
+        .returning({ id: printsTable.id });
+
+      if (updated.length === 0) return ok([]);
+      return ok((await selectPrints(tx, { id: updated.map(({ id }) => id) })).map(toPrint));
     } catch (error) {
       return err(asError(error));
     }
