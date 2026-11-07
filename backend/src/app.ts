@@ -1,26 +1,31 @@
 import { Hono } from "hono";
-import { createDatabase, type Database } from "./db";
-import { PrintersApi } from "./printers";
+import type { Database } from "./db";
+import { createPrintersApi } from "./printers";
+import { fromDialect } from "./printers/repository";
 
 export type App = {
   api: Hono;
   db: Database;
 };
 
-export const rootApi = new Hono();
-rootApi.get("/health", (c) =>
-  c.json({
-    status: "running",
-  }),
-);
+const createRootApi = (): Hono => {
+  const api = new Hono();
+  api.get("/health", (c) => c.json({ status: "running" }));
+  return api;
+};
 
-const api = rootApi.basePath("/api");
-const v1 = api.basePath("/v1");
-v1.route("/printers", PrintersApi);
+export const createApp = async (db: Database): Promise<App> => {
+  const api = createRootApi();
+  const v1 = api.basePath("/api").basePath("/v1");
 
-export const createApp = async (): Promise<App> => {
-  return {
-    api: rootApi,
-    db: await createDatabase(),
-  };
+  switch (db.dialect) {
+    case "postgresql":
+      v1.route("/printers", createPrintersApi({ repository: await fromDialect("postgresql"), uow: db.uow }));
+      break;
+    case "sqlite":
+      v1.route("/printers", createPrintersApi({ repository: await fromDialect("sqlite"), uow: db.uow }));
+      break;
+  }
+
+  return { api, db };
 };

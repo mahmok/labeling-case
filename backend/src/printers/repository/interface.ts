@@ -4,6 +4,7 @@ import type { Printer } from "../domain.ts";
 export type CreatePrinterInput = {
   name: string;
   model: string;
+  nickname?: string;
   location: string;
   serialNumber: string;
 };
@@ -12,6 +13,7 @@ export type UpdatePrinterInput = {
   id: string;
   name?: string;
   model?: string;
+  nickname?: string | null;
   location?: string;
   serialNumber?: string;
 };
@@ -20,6 +22,7 @@ export type GetPrintersInput = {
   id?: string[];
   name?: string[];
   model?: string[];
+  nickname?: string[];
   location?: string[];
   serialNumber?: string[];
   pagination?: {

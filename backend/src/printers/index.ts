@@ -1,1 +1,1 @@
-export { PrintersApi } from "./api.ts";
+export { createPrintersApi } from "./api.ts";

@@ -1,10 +1,12 @@
 import { createApp } from "./src/app.ts";
 import { config } from "./src/config";
+import { createDatabase } from "./src/db";
 import { logger } from "./src/logger";
 
 void (async () => {
   logger.info({ msg: "starting server...", port: config.api.port });
-  const app = await createApp();
+  const db = await createDatabase();
+  const app = await createApp(db);
 
   const server = Bun.serve({
     fetch: app.api.fetch,

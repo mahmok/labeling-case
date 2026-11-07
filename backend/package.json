@@ -3,10 +3,13 @@
     "@libsql/client": "^0.18.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.16",
+    "hono-openapi": "^1.5.0",
     "pg": "^8.23.1",
-    "pino": "^10.4.0"
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@testcontainers/postgresql": "^12.2.1",
     "@types/pg": "^8.23.1",
     "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15"
@@ -19,7 +22,11 @@
     "db:migrate": "drizzle-kit migrate --config=src/db/drizzle.config.ts",
     "db:push": "drizzle-kit push --config=src/db/drizzle.config.ts",
     "dev": "bun run --watch index.ts",
-    "start": "bun run index.ts"
+    "start": "bun run index.ts",
+    "test": "bun test",
+    "test:integration": "bun test tests/integration",
+    "test:unit": "bun test src",
+    "test:watch": "bun test --watch"
   },
   "type": "module"
 }
