@@ -1,22 +1,26 @@
 import { Hono } from "hono";
 import { openAPIRouteHandler } from "hono-openapi";
 import { createDatabase, type Database } from "./db";
-import { createLabelsApi } from "./labels";
+import { createLabelsApi, createLabelUseCases, type LabelUseCases } from "./labels";
 import { MockClient as MockLabelsClient } from "./labels/client/mock.ts";
 import { fromDialect as labelsFromDialect } from "./labels/repository";
-import { createLabelUseCases, type Dependencies as LabelDependencies } from "./labels/use-cases.ts";
-import { createPrintersApi } from "./printers";
+import { createPrintersApi, createPrinterUseCases, type PrinterUseCases } from "./printers";
 import { MockClient as MockPrintersClient } from "./printers/client/mock.ts";
 import { fromDialect as printersFromDialect } from "./printers/repository";
-import { createPrinterUseCases, type Dependencies } from "./printers/use-cases.ts";
+
+export type AppUseCases = {
+  labels: LabelUseCases;
+  printers: PrinterUseCases;
+};
 
 export type App = {
   api: Hono;
   db: Database;
+  useCases: AppUseCases;
 };
 
-const createPrintersRouter = <T>(deps: Dependencies<T>): Hono => createPrintersApi(createPrinterUseCases(deps));
-const createLabelsRouter = <T>(deps: LabelDependencies<T>): Hono => createLabelsApi(createLabelUseCases(deps));
+const createPrintersRouter = (useCases: PrinterUseCases): Hono => createPrintersApi(useCases);
+const createLabelsRouter = (useCases: LabelUseCases): Hono => createLabelsApi(useCases);
 
 const createRootApi = (): Hono => {
   const api = new Hono();
@@ -24,21 +28,45 @@ const createRootApi = (): Hono => {
   return api;
 };
 
+const createUseCases = async (db: Database): Promise<AppUseCases> => {
+  switch (db.dialect) {
+    case "postgresql":
+      return {
+        labels: createLabelUseCases({
+          client: MockLabelsClient,
+          repository: await labelsFromDialect("postgresql"),
+          uow: db.uow,
+        }),
+        printers: createPrinterUseCases({
+          client: MockPrintersClient,
+          repository: await printersFromDialect("postgresql"),
+          uow: db.uow,
+        }),
+      };
+    case "sqlite":
+      return {
+        labels: createLabelUseCases({
+          client: MockLabelsClient,
+          repository: await labelsFromDialect("sqlite"),
+          uow: db.uow,
+        }),
+        printers: createPrinterUseCases({
+          client: MockPrintersClient,
+          repository: await printersFromDialect("sqlite"),
+          uow: db.uow,
+        }),
+      };
+  }
+};
+
 export const createApp = async (database?: Database): Promise<App> => {
   const db = database ?? (await createDatabase());
+  const useCases = await createUseCases(db);
   const api = createRootApi();
   const v1 = api.basePath("/api").basePath("/v1");
 
-  switch (db.dialect) {
-    case "postgresql":
-      v1.route("/printers", createPrintersRouter({ client: MockPrintersClient, repository: await printersFromDialect("postgresql"), uow: db.uow }));
-      v1.route("/labels", createLabelsRouter({ client: MockLabelsClient, repository: await labelsFromDialect("postgresql"), uow: db.uow }));
-      break;
-    case "sqlite":
-      v1.route("/printers", createPrintersRouter({ client: MockPrintersClient, repository: await printersFromDialect("sqlite"), uow: db.uow }));
-      v1.route("/labels", createLabelsRouter({ client: MockLabelsClient, repository: await labelsFromDialect("sqlite"), uow: db.uow }));
-      break;
-  }
+  v1.route("/printers", createPrintersRouter(useCases.printers));
+  v1.route("/labels", createLabelsRouter(useCases.labels));
 
   api.get(
     "/openapi.json",
@@ -52,5 +80,5 @@ export const createApp = async (database?: Database): Promise<App> => {
     }),
   );
 
-  return { api, db };
+  return { api, db, useCases };
 };
