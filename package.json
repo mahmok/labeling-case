@@ -9,6 +9,7 @@
   "scripts": {
     "backend:api:dev": "bun run --filter backend dev:api",
     "backend:api:start": "bun run --filter backend start:api",
+    "backend:db:migrate": "bun run --filter backend db:migrate:runtime",
     "backend:worker:dev": "bun run --filter backend dev:worker",
     "backend:worker:start": "bun run --filter backend start:worker"
   },
