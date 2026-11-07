@@ -148,7 +148,7 @@ describe("Print use cases", () => {
     }
   });
 
-  test("printWithLocalLookup stores an unresolved printer when only the label is found", async () => {
+  test("printWithLocalLookup reports a missing printer so callers can fall back", async () => {
     const label = await createLabel();
     const printerName = `Not cached ${crypto.randomUUID()}`;
 
@@ -158,9 +158,23 @@ describe("Print use cases", () => {
       triggeredBy: "api",
     });
 
+    expect(result.isOk).toBe(false);
+    if (!result.isOk && isNotFoundError(result.error)) expect(result.error.resource).toBe("Printer");
+  });
+
+  test("printWithVendorLookup accepts an unresolved vendor printer", async () => {
+    const label = await createLabel();
+    const printerName = `Vendor printer ${crypto.randomUUID()}`;
+
+    const result = await useCases.printWithVendorLookup({
+      labelId: label.id,
+      printerName,
+      triggeredBy: "api",
+    });
+
     expect(result).toMatchObject({
       isOk: true,
-      value: { label, printer: { id: null, name: printerName } },
+      value: { label: { id: label.id }, printer: { id: null, name: printerName } },
     });
   });
 

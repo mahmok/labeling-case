@@ -18,6 +18,8 @@ export type Dependencies<T> = {
   getLabelByIdFromVendor: GetLabelById;
 };
 
+type PrinterLookupPolicy = "required" | "optional";
+
 export type PrintInput = {
   labelId: string;
   printerName: string;
@@ -36,6 +38,7 @@ const lookupPrinterAndLabel = async (
   input: PrintInput,
   getPrinterByName: GetPrinterByName,
   getLabelById: GetLabelById,
+  printerLookupPolicy: PrinterLookupPolicy,
 ): Promise<Result<{ printer: Printer; label: Label }, Error>> => {
   const [labelResult, printerResult] = await Promise.all([
     getLabelById(input.labelId),
@@ -44,7 +47,7 @@ const lookupPrinterAndLabel = async (
   if (!labelResult.isOk) return labelResult;
 
   if (!printerResult.isOk) {
-    if (!isNotFoundError(printerResult.error)) return printerResult;
+    if (!(isNotFoundError(printerResult.error) && printerLookupPolicy === "optional")) return printerResult;
     return ok({ label: labelResult.value, printer: { id: null, name: input.printerName } });
   }
 
@@ -54,7 +57,12 @@ const lookupPrinterAndLabel = async (
 const printWithLocalLookup =
   <T>({ repository, uow, getPrinterByNameLocally, getLabelByIdLocally }: Dependencies<T>) =>
   async (input: PrintInput): Promise<Result<Print, Error>> => {
-    const printerAndLabel = await lookupPrinterAndLabel(input, getPrinterByNameLocally, getLabelByIdLocally);
+    const printerAndLabel = await lookupPrinterAndLabel(
+      input,
+      getPrinterByNameLocally,
+      getLabelByIdLocally,
+      "required",
+    );
     if (!printerAndLabel.isOk) return printerAndLabel;
 
     const { printer } = printerAndLabel.value;
@@ -80,7 +88,12 @@ const printWithLocalLookup =
 const printWithVendorLookup =
   <T>({ repository, uow, getPrinterByNameFromVendor, getLabelByIdFromVendor }: Dependencies<T>) =>
   async (input: PrintInput): Promise<Result<Print, Error>> => {
-    const printerAndLabel = await lookupPrinterAndLabel(input, getPrinterByNameFromVendor, getLabelByIdFromVendor);
+    const printerAndLabel = await lookupPrinterAndLabel(
+      input,
+      getPrinterByNameFromVendor,
+      getLabelByIdFromVendor,
+      "optional",
+    );
     if (!printerAndLabel.isOk) return printerAndLabel;
 
     const result = await uow.execute((tx) =>

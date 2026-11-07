@@ -4,6 +4,7 @@ import type { ApplicationUseCases } from "./application.ts";
 import { createJobsApi } from "./jobs/api.ts";
 import { createLabelsApi } from "./labels";
 import { createPrintersApi } from "./printers";
+import { createPrintsApi } from "./prints/api.ts";
 
 export const createApi = (useCases: ApplicationUseCases): Hono => {
   const api = new Hono();
@@ -13,6 +14,7 @@ export const createApi = (useCases: ApplicationUseCases): Hono => {
   v1.route("/printers", createPrintersApi(useCases.printers));
   v1.route("/labels", createLabelsApi(useCases.labels));
   v1.route("/jobs", createJobsApi(useCases.jobs));
+  v1.route("/prints", createPrintsApi(useCases.prints));
 
   api.get(
     "/openapi.json",
