@@ -109,10 +109,7 @@ const fetchExistingLabels = <T>({ repository, uow }: Dependencies<T>): Promise<R
 const labelsAreEqual = (left: Label, right: { id: string; name: string; version: number }): boolean =>
   left.id === right.id && left.name === right.name && left.version === String(right.version);
 
-const planLabelChanges = (
-  vendorLabels: GetLabelsResponse,
-  existingLabels: Label[],
-): ApplyLabelChangesInput => {
+const planLabelChanges = (vendorLabels: GetLabelsResponse, existingLabels: Label[]): ApplyLabelChangesInput => {
   const vendorById = new Map(vendorLabels.map((label) => [label.id, label]));
   const existingById = new Map(existingLabels.map((label) => [label.id, label]));
   const create: CreateLabelInput[] = [];
@@ -135,17 +132,19 @@ const planLabelChanges = (
   return { create, delete: deleteIds, update };
 };
 
-const syncLabels = <T>(deps: Dependencies<T>) => async (): Promise<Result<ApplyLabelChangesResult, Error>> => {
-  const vendorLabels = await getVendorLabels(deps.client)();
-  if (!vendorLabels.isOk) return vendorLabels;
-  if (vendorLabels.value.length === 0) return ok({ created: [], deleted: [], updated: [] });
+const syncLabels =
+  <T>(deps: Dependencies<T>) =>
+  async (): Promise<Result<ApplyLabelChangesResult, Error>> => {
+    const vendorLabels = await getVendorLabels(deps.client)();
+    if (!vendorLabels.isOk) return vendorLabels;
+    if (vendorLabels.value.length === 0) return ok({ created: [], deleted: [], updated: [] });
 
-  const existingLabels = await fetchExistingLabels(deps);
-  if (!existingLabels.isOk) return existingLabels;
+    const existingLabels = await fetchExistingLabels(deps);
+    if (!existingLabels.isOk) return existingLabels;
 
-  const changes = planLabelChanges(vendorLabels.value, existingLabels.value);
-  return applyLabelChanges(deps)(changes);
-};
+    const changes = planLabelChanges(vendorLabels.value, existingLabels.value);
+    return applyLabelChanges(deps)(changes);
+  };
 
 export const applyLabelChanges =
   <T>({ repository, uow }: Dependencies<T>) =>

@@ -66,9 +66,17 @@ export const SQLiteLabelsRepository: LabelsRepository<SQLiteTransaction> = {
       const fields = ["name", "version", "nickname", "isPrimary"] as const;
       const updated: Label[] = [];
       for (const item of input) {
-        const changes = Object.fromEntries(fields.filter((field) => item[field] !== undefined).map((field) => [field, item[field]]));
+        const changes = Object.fromEntries(
+          fields.filter((field) => item[field] !== undefined).map((field) => [field, item[field]]),
+        );
         if (Object.keys(changes).length === 0) continue;
-        updated.push(...(await tx.update(labelsTable).set(changes).where(inArray(labelsTable.id, [item.id])).returning()));
+        updated.push(
+          ...(await tx
+            .update(labelsTable)
+            .set(changes)
+            .where(inArray(labelsTable.id, [item.id]))
+            .returning()),
+        );
       }
       return ok(updated);
     } catch (error) {

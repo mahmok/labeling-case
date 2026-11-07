@@ -1,0 +1,20 @@
+name: Setup Project
+description: Installs the repository's Bun workspace dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Setup tools with Mise
+      uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca # v5
+
+    - name: Cache Bun dependencies
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ~/.bun/install/cache
+        key: bun-cache-${{ runner.os }}-${{ hashFiles('mise.toml', '**/bun.lock') }}
+        restore-keys: |
+          bun-cache-${{ runner.os }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: bun install --frozen-lockfile

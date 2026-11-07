@@ -64,9 +64,17 @@ export const SQLitePrintersRepository: PrintersRepository<SQLiteTransaction> = {
       const fields = ["name", "model", "nickname", "location", "serialNumber"] as const;
       const updated: Printer[] = [];
       for (const item of input) {
-        const changes = Object.fromEntries(fields.filter((field) => item[field] !== undefined).map((field) => [field, item[field]]));
+        const changes = Object.fromEntries(
+          fields.filter((field) => item[field] !== undefined).map((field) => [field, item[field]]),
+        );
         if (Object.keys(changes).length === 0) continue;
-        updated.push(...(await tx.update(printersTable).set(changes).where(inArray(printersTable.id, [item.id])).returning()));
+        updated.push(
+          ...(await tx
+            .update(printersTable)
+            .set(changes)
+            .where(inArray(printersTable.id, [item.id]))
+            .returning()),
+        );
       }
       return ok(updated);
     } catch (error) {

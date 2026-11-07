@@ -1,5 +1,5 @@
 import { ok, type Result } from "../../utils/result.ts";
-import type { GetLabelsRequest, GetLabelsResponse, LabelResponse, LabelsClient } from "./interface.ts";
+import type { GetLabelsRequest, GetLabelsResponse, LabelsClient } from "./interface.ts";
 
 export const get = async (_request: GetLabelsRequest): Promise<Result<GetLabelsResponse, Error>> => {
   return ok([

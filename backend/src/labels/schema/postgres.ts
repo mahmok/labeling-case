@@ -6,9 +6,9 @@ export const labelsTable = pgTable("labels", {
   isPrimary: boolean("is_primary").default(false).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   nickname: varchar("nickname", { length: 255 }),
-  version: varchar("version", { length: 255 }).notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
+  version: varchar("version", { length: 255 }).notNull(),
 });
