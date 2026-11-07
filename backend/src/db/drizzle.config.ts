@@ -12,6 +12,11 @@ export default defineConfig({
   },
   dialect: config.database.dialect,
   out: "./migrations",
-  schema: ["src/printers/schema/postgres.ts", "src/labels/schema/postgres.ts", "src/jobs/schema/postgres.ts"],
+  schema: [
+    "src/printers/schema/postgres.ts",
+    "src/labels/schema/postgres.ts",
+    "src/prints/schema/postgres.ts",
+    "src/jobs/schema/postgres.ts",
+  ],
   verbose: true,
 });
