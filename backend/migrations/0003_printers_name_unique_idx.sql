@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "printers_name_unique_idx" ON "printers" USING btree ("name");

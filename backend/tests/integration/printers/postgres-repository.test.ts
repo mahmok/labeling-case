@@ -2,12 +2,10 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import type { Hono } from "hono";
 import { config } from "../../../src/config.ts";
 import { createDatabase } from "../../../src/db";
 import type { PostgresTransaction } from "../../../src/db/postgres/postgres.ts";
 import type { UnitOfWork } from "../../../src/db/unit-of-work.ts";
-import { createPrintersApi, createPrinterUseCases } from "../../../src/printers";
 import type { Printer } from "../../../src/printers/domain.ts";
 import type { CreatePrinterInput, GetPrintersInput } from "../../../src/printers/repository/interface.ts";
 import { PostgresPrintersRepository } from "../../../src/printers/repository/postgres.ts";
@@ -15,7 +13,6 @@ import { PostgresPrintersRepository } from "../../../src/printers/repository/pos
 let container: StartedPostgreSqlContainer | undefined;
 let unitOfWork: UnitOfWork<PostgresTransaction>;
 let closeTestDatabase: () => Promise<void> = async () => {};
-let printersApi: Hono;
 
 const createPrinter = async (overrides: Partial<CreatePrinterInput> = {}): Promise<Printer> => {
   const unique = crypto.randomUUID();
@@ -60,7 +57,6 @@ describe("PostgresPrintersRepository", () => {
     if (database.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
     unitOfWork = database.uow;
     closeTestDatabase = database.close;
-    printersApi = createPrintersApi(createPrinterUseCases({ repository: PostgresPrintersRepository, uow: unitOfWork }));
     await migrate(database.db, { migrationsFolder: resolve(import.meta.dir, "../../../migrations") });
   }, 120_000);
 
@@ -69,35 +65,24 @@ describe("PostgresPrintersRepository", () => {
     await container?.stop();
   }, 30_000);
 
-  test("creates, filters, and updates printers by nickname", async () => {
-    const marker = crypto.randomUUID();
-    const nickname = `Front desk ${marker}`;
-    const createResponse = await printersApi.request("/", {
-      body: JSON.stringify({
-        location: `location-${marker}`,
-        model: `model-${marker}`,
-        name: `printer-${marker}`,
-        nickname,
-        serialNumber: `serial-${marker}`,
-      }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    });
+  test("enforces unique printer names", async () => {
+    const existing = await createPrinter();
+    const duplicate = await unitOfWork.execute((tx) =>
+      PostgresPrintersRepository.create(
+        [
+          {
+            location: "another location",
+            model: "another model",
+            name: existing.name,
+            serialNumber: `serial-${crypto.randomUUID()}`,
+          },
+        ],
+        tx,
+      ),
+    );
 
-    expect(createResponse.status).toBe(201);
-    const { data: created } = (await createResponse.json()) as { data: Printer };
-    expect(created).toMatchObject({ nickname });
-
-    const listResponse = await printersApi.request(`/?nickname=${encodeURIComponent(marker.slice(0, 8))}`);
-    expect(await listResponse.json()).toMatchObject({ data: [{ id: created.id, nickname }] });
-
-    const updateResponse = await printersApi.request(`/${created.id}`, {
-      body: JSON.stringify({ nickname: null }),
-      headers: { "content-type": "application/json" },
-      method: "PATCH",
-    });
-    expect(updateResponse.status).toBe(200);
-    expect(await updateResponse.json()).toMatchObject({ data: { id: created.id, nickname: null } });
+    expect(duplicate.isOk).toBe(false);
+    expect(await getPrinters({ name: [existing.name] })).toEqual([existing]);
   });
 
   test("creates printers and retrieves them by generated ID", async () => {
@@ -107,13 +92,13 @@ describe("PostgresPrintersRepository", () => {
     expect(retrieved).toEqual(created);
   });
 
-  test("filters by partial name and exact serial number", async () => {
+  test("filters by exact name and serial number", async () => {
     const marker = crypto.randomUUID();
     const matching = await createPrinter({ name: `North office ${marker}`, serialNumber: `serial-${marker}` });
     await createPrinter({ name: `South office ${marker}`, serialNumber: `other-${marker}` });
 
     const result = await getPrinters({
-      name: [`north office ${marker.slice(0, 8)}`],
+      name: [matching.name],
       serialNumber: [matching.serialNumber],
     });
 
@@ -129,7 +114,7 @@ describe("PostgresPrintersRepository", () => {
     ]);
 
     const result = await getPrinters({
-      name: [marker],
+      name: printers.map(({ name }) => name),
       pagination: { limit: 1, offset: 1 },
       sorting: [{ direction: "ASC", key: "name" }],
     });
@@ -168,75 +153,6 @@ describe("PostgresPrintersRepository", () => {
 
     expect(await getPrinters({ id: [target.id] })).toEqual([]);
     expect((await getPrinters({ id: [retained.id] })).map(({ id }) => id)).toEqual([retained.id]);
-  });
-
-  test("sorts list responses with +field and -field query syntax", async () => {
-    const marker = crypto.randomUUID();
-    const names = [`sort-${marker}-c`, `sort-${marker}-a`, `sort-${marker}-b`];
-    await Promise.all(names.map((name) => createPrinter({ name })));
-
-    const ascendingQuery = new URLSearchParams({ name: marker, sort: "+name" });
-    const ascendingResponse = await printersApi.request(`/?${ascendingQuery}`);
-    const ascending = (await ascendingResponse.json()) as { data: Printer[] };
-    expect(ascending.data.map(({ name }) => name)).toEqual([
-      `sort-${marker}-a`,
-      `sort-${marker}-b`,
-      `sort-${marker}-c`,
-    ]);
-
-    const descendingQuery = new URLSearchParams({ name: marker, sort: "-name" });
-    const descendingResponse = await printersApi.request(`/?${descendingQuery}`);
-    const descending = (await descendingResponse.json()) as { data: Printer[] };
-    expect(descending.data.map(({ name }) => name)).toEqual([
-      `sort-${marker}-c`,
-      `sort-${marker}-b`,
-      `sort-${marker}-a`,
-    ]);
-  });
-
-  test("serves printer create, read, update, and delete over HTTP", async () => {
-    const marker = crypto.randomUUID();
-    const createdResponse = await printersApi.request("/", {
-      body: JSON.stringify({
-        location: `location-${marker}`,
-        model: `model-${marker}`,
-        name: `printer-${marker}`,
-        serialNumber: `serial-${marker}`,
-      }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    });
-
-    expect(createdResponse.status).toBe(201);
-    const created = (await createdResponse.json()) as { data: Printer };
-
-    const fetchedResponse = await printersApi.request(`/${created.data.id}`);
-    expect(fetchedResponse.status).toBe(200);
-    expect(await fetchedResponse.json()).toEqual({ data: created.data });
-
-    const updatedResponse = await printersApi.request(`/${created.data.id}`, {
-      body: JSON.stringify({ name: `updated-${marker}` }),
-      headers: { "content-type": "application/json" },
-      method: "PATCH",
-    });
-    expect(updatedResponse.status).toBe(200);
-    expect(await updatedResponse.json()).toMatchObject({ data: { id: created.data.id, name: `updated-${marker}` } });
-
-    const deletedResponse = await printersApi.request(`/${created.data.id}`, { method: "DELETE" });
-    expect(deletedResponse.status).toBe(204);
-    const missingResponse = await printersApi.request(`/${created.data.id}`);
-    expect(missingResponse.status).toBe(404);
-  });
-
-  test("rejects invalid printer payloads with a client error", async () => {
-    const response = await printersApi.request("/", {
-      body: JSON.stringify({ name: "incomplete" }),
-      headers: { "content-type": "application/json" },
-      method: "POST",
-    });
-
-    expect(response.status).toBe(400);
-    expect(await response.json()).toMatchObject({ error: { message: expect.any(String) } });
   });
 
   test("rejects updates containing duplicate IDs without changing rows", async () => {

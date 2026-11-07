@@ -84,6 +84,34 @@ describe("Printers API (end to end)", () => {
       expect(await response.json()).toMatchObject({ data: [{ id: printer.id, nickname: `Front desk ${marker}` }] });
     });
 
+    test("sorts exact name matches in ascending and descending order", async () => {
+      const marker = crypto.randomUUID();
+      const names = [`sort-${marker}-c`, `sort-${marker}-a`, `sort-${marker}-b`];
+      for (const name of names) await createPrinter({ name });
+
+      const createSortQuery = (sort: string): URLSearchParams => {
+        const query = new URLSearchParams({ sort });
+        for (const name of names) query.append("name", name);
+        return query;
+      };
+
+      const ascending = await request(`${printersPath}?${createSortQuery("+name")}`);
+      const ascendingData = (await ascending.json()) as { data: Printer[] };
+      expect(ascendingData.data.map(({ name }) => name)).toEqual([
+        `sort-${marker}-a`,
+        `sort-${marker}-b`,
+        `sort-${marker}-c`,
+      ]);
+
+      const descending = await request(`${printersPath}?${createSortQuery("-name")}`);
+      const descendingData = (await descending.json()) as { data: Printer[] };
+      expect(descendingData.data.map(({ name }) => name)).toEqual([
+        `sort-${marker}-c`,
+        `sort-${marker}-b`,
+        `sort-${marker}-a`,
+      ]);
+    });
+
     test("rejects malformed filters", async () => {
       const response = await request(`${printersPath}?limit=not-a-number`);
 

@@ -1,4 +1,4 @@
-import { pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, uniqueIndex, uuid, varchar } from "drizzle-orm/pg-core";
 
 export const printersTable = pgTable("printers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -14,4 +14,5 @@ export const printersTable = pgTable("printers", {
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),
-});
+}, (table) => [uniqueIndex("printers_name_unique_idx").on(table.name)]);
+

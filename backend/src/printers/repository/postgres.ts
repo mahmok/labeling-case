@@ -41,16 +41,11 @@ export const PostgresPrintersRepository: PrintersRepository<PostgresTransaction>
     try {
       const filters: SQL[] = [
         ...(input.id?.length ? [inArray(printersTable.id, input.id)] : []),
+        ...(input.name?.length ? [inArray(printersTable.name, input.name)] : []),
         ...(input.model?.length ? [inArray(printersTable.model, input.model)] : []),
         ...(input.location?.length ? [inArray(printersTable.location, input.location)] : []),
         ...(input.serialNumber?.length ? [inArray(printersTable.serialNumber, input.serialNumber)] : []),
       ];
-
-      if (input.name?.length) {
-        const nameFilter = or(...input.name.map((name) => ilike(printersTable.name, `%${name}%`)));
-
-        if (nameFilter) filters.push(nameFilter);
-      }
 
       if (input.nickname?.length) {
         const nicknameFilter = or(...input.nickname.map((nickname) => ilike(printersTable.nickname, `%${nickname}%`)));

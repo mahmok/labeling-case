@@ -21,6 +21,13 @@
       "tag": "0002_add_timestamps_to_labels",
       "version": "7",
       "when": 1794019483495
+    },
+    {
+      "breakpoints": true,
+      "idx": 3,
+      "tag": "0003_printers_name_unique_idx",
+      "version": "7",
+      "when": 1794046885777
     }
   ],
   "version": "7"

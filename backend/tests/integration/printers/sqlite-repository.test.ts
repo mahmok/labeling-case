@@ -63,19 +63,39 @@ describe("SQLitePrintersRepository", () => {
     expect(printer.updatedAt).toBeInstanceOf(Date);
   });
 
+  test("enforces unique printer names", async () => {
+    const existing = await createPrinter();
+    const duplicate = await unitOfWork.execute((tx) =>
+      SQLitePrintersRepository.create(
+        [
+          {
+            location: "another location",
+            model: "another model",
+            name: existing.name,
+            serialNumber: `serial-${crypto.randomUUID()}`,
+          },
+        ],
+        tx,
+      ),
+    );
+
+    expect(duplicate.isOk).toBe(false);
+    expect(await getPrinters({ name: [existing.name] })).toEqual([existing]);
+  });
+
   test("retrieves a printer by ID", async () => {
     const created = await createPrinter();
 
     expect(await getPrinters({ id: [created.id] })).toEqual([created]);
   });
 
-  test("filters by partial name and exact serial number", async () => {
+  test("filters by exact name and serial number", async () => {
     const marker = crypto.randomUUID();
     const matching = await createPrinter({ name: `North office ${marker}`, serialNumber: `serial-${marker}` });
     await createPrinter({ name: `South office ${marker}`, serialNumber: `other-${marker}` });
 
     const result = await getPrinters({
-      name: [`north office ${marker.slice(0, 8)}`],
+      name: [matching.name],
       serialNumber: [matching.serialNumber],
     });
 
@@ -96,7 +116,7 @@ describe("SQLitePrintersRepository", () => {
     for (const name of names) await createPrinter({ name });
 
     const result = await getPrinters({
-      name: [marker],
+      name: names,
       pagination: { limit: 1, offset: 1 },
       sorting: [{ direction: "ASC", key: "name" }],
     });

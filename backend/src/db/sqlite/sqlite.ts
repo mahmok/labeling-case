@@ -23,6 +23,7 @@ export const createSqliteDatabase = async (): Promise<{ db: SQLiteDatabase; clos
       updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
     )
   `);
+  await client.execute(`CREATE UNIQUE INDEX IF NOT EXISTS printers_name_unique_idx ON printers (name)`);
   await client.execute(`
     CREATE TABLE IF NOT EXISTS labels (
       id TEXT PRIMARY KEY NOT NULL,

@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 export const printersTable = sqliteTable("printers", {
@@ -17,4 +17,4 @@ export const printersTable = sqliteTable("printers", {
     .default(sql`(unixepoch() * 1000)`)
     .$onUpdate(() => new Date())
     .notNull(),
-});
+}, (table) => [uniqueIndex("printers_name_unique_idx").on(table.name)]);
