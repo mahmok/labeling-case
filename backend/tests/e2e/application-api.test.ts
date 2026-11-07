@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createApi } from "../../src/api.ts";
-import { createApplication, type ApplicationUseCases } from "../../src/application.ts";
+import { type ApplicationUseCases, createApplication } from "../../src/application.ts";
 import { config } from "../../src/config.ts";
 
 let container: StartedPostgreSqlContainer | undefined;
@@ -61,12 +61,14 @@ describe("Application API (end to end)", () => {
     if (labels.isOk) expect(labels.value[0]).toEqual({ id: "lbl-001", name: "Fragile", version: 1 });
   });
 
-  test("serves one OpenAPI document for printers and labels at the API root", async () => {
+  test("serves one OpenAPI document for all resources at the API root", async () => {
     const response = await request("/openapi.json");
     const document = (await response.json()) as { paths: Record<string, unknown> };
 
     expect(response.status).toBe(200);
     expect(document.paths).toHaveProperty("/api/v1/printers/{id}");
     expect(document.paths).toHaveProperty("/api/v1/labels/{id}");
+    expect(document.paths).toHaveProperty("/api/v1/jobs");
+    expect(document.paths).toHaveProperty("/api/v1/jobs/{id}");
   });
 });
