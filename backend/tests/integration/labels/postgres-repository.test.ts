@@ -119,7 +119,7 @@ describe("PostgresLabelsRepository", () => {
     expect(labels).toHaveLength(3);
   });
 
-  test("updates nickname and primary status for multiple labels", async () => {
+  test("updates vendor and mutable fields for multiple labels", async () => {
     const first = await createLabel();
     const second = await createLabel();
     const marker = crypto.randomUUID();
@@ -127,8 +127,8 @@ describe("PostgresLabelsRepository", () => {
     const updated = await unitOfWork.execute((tx) =>
       PostgresLabelsRepository.update(
         [
-          { id: first.id, isPrimary: true, nickname: `updated-first-${marker}` },
-          { id: second.id, isPrimary: false, nickname: `updated-second-${marker}` },
+          { id: first.id, isPrimary: true, name: `updated-first-${marker}`, nickname: `nickname-first-${marker}` },
+          { id: second.id, isPrimary: false, nickname: `nickname-second-${marker}`, version: `version-${marker}` },
         ],
         tx,
       ),
@@ -136,8 +136,16 @@ describe("PostgresLabelsRepository", () => {
     if (!updated.isOk) throw updated.error;
 
     const byId = new Map(updated.value.map((label) => [label.id, label]));
-    expect(byId.get(first.id)).toMatchObject({ isPrimary: true, nickname: `updated-first-${marker}` });
-    expect(byId.get(second.id)).toMatchObject({ isPrimary: false, nickname: `updated-second-${marker}` });
+    expect(byId.get(first.id)).toMatchObject({
+      isPrimary: true,
+      name: `updated-first-${marker}`,
+      nickname: `nickname-first-${marker}`,
+    });
+    expect(byId.get(second.id)).toMatchObject({
+      isPrimary: false,
+      nickname: `nickname-second-${marker}`,
+      version: `version-${marker}`,
+    });
   });
 
   test("clears a nickname, preserves createdAt, and advances updatedAt", async () => {

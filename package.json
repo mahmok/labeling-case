@@ -7,8 +7,8 @@
   "name": "labeling-platform-case",
   "private": true,
   "scripts": {
-    "backend:dev": "bun run --filter backend dev",
-    "backend:start": "bun run --filter backend start"
+    "backend:api:dev": "bun run --filter backend dev:api",
+    "backend:api:start": "bun run --filter backend start:api"
   },
   "type": "module",
   "workspaces": [

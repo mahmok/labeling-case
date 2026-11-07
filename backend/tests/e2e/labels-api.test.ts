@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { createApp } from "../../src/app.ts";
+import { createApi } from "../../src/api.ts";
+import { createApplication } from "../../src/application.ts";
 import { config } from "../../src/config.ts";
 import type { Label } from "../../src/labels/domain.ts";
 import type { CreateLabelInput } from "../../src/labels/repository/interface.ts";
@@ -51,11 +52,11 @@ describe("Labels API (end to end)", () => {
       user: container.getUsername(),
     });
 
-    const app = await createApp();
-    if (app.db.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
-    closeDatabase = app.db.close;
-    await migrate(app.db.db, { migrationsFolder: resolve(import.meta.dir, "../../migrations") });
-    server = Bun.serve({ fetch: app.api.fetch, port: 0 });
+    const application = await createApplication();
+    if (application.db.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
+    closeDatabase = application.db.close;
+    await migrate(application.db.db, { migrationsFolder: resolve(import.meta.dir, "../../migrations") });
+    server = Bun.serve({ fetch: createApi(application.useCases).fetch, port: 0 });
     origin = `http://localhost:${server.port}`;
   }, 120_000);
 

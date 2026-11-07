@@ -87,13 +87,15 @@ describe("Label use cases", () => {
     if (!result.isOk) expect(isNotFoundError(result.error)).toBe(true);
   });
 
-  test("updateLabel persists mutable fields", async () => {
+  test("updateLabel persists vendor fields and mutable fields", async () => {
     const label = await createLabel();
-    const nickname = `updated-${crypto.randomUUID()}`;
-    const result = await useCases.updateLabel({ id: label.id, isPrimary: true, nickname });
+    const name = `updated-${crypto.randomUUID()}`;
+    const version = `updated-${crypto.randomUUID()}`;
+    const nickname = `nickname-${crypto.randomUUID()}`;
+    const result = await useCases.updateLabel({ id: label.id, isPrimary: true, name, nickname, version });
 
     expect(result.isOk).toBe(true);
-    if (result.isOk) expect(result.value).toMatchObject({ id: label.id, isPrimary: true, nickname });
+    if (result.isOk) expect(result.value).toMatchObject({ id: label.id, isPrimary: true, name, nickname, version });
   });
 
   test("updateLabel returns a not-found error for an unknown ID", async () => {

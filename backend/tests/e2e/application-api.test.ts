@@ -2,13 +2,14 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { createApp, type AppUseCases } from "../../src/app.ts";
+import { createApi } from "../../src/api.ts";
+import { createApplication, type ApplicationUseCases } from "../../src/application.ts";
 import { config } from "../../src/config.ts";
 
 let container: StartedPostgreSqlContainer | undefined;
 let server: ReturnType<typeof Bun.serve> | undefined;
 let closeDatabase: () => Promise<void> = async () => {};
-let useCases: AppUseCases;
+let useCases: ApplicationUseCases;
 let origin: string;
 
 const request = (path: string): Promise<Response> => fetch(`${origin}${path}`);
@@ -29,12 +30,12 @@ describe("Application API (end to end)", () => {
       user: container.getUsername(),
     });
 
-    const app = await createApp();
-    if (app.db.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
-    closeDatabase = app.db.close;
-    useCases = app.useCases;
-    await migrate(app.db.db, { migrationsFolder: resolve(import.meta.dir, "../../migrations") });
-    server = Bun.serve({ fetch: app.api.fetch, port: 0 });
+    const application = await createApplication();
+    if (application.db.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
+    closeDatabase = application.db.close;
+    useCases = application.useCases;
+    await migrate(application.db.db, { migrationsFolder: resolve(import.meta.dir, "../../migrations") });
+    server = Bun.serve({ fetch: createApi(useCases).fetch, port: 0 });
     origin = `http://localhost:${server.port}`;
   }, 120_000);
 

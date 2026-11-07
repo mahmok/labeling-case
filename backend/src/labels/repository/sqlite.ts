@@ -63,7 +63,7 @@ export const SQLiteLabelsRepository: LabelsRepository<SQLiteTransaction> = {
       const ids = input.map(({ id }) => id);
       if (new Set(ids).size !== ids.length) return err(new Error("Duplicate label IDs"));
 
-      const fields = ["nickname", "isPrimary"] as const;
+      const fields = ["name", "version", "nickname", "isPrimary"] as const;
       const updated: Label[] = [];
       for (const item of input) {
         const changes = Object.fromEntries(fields.filter((field) => item[field] !== undefined).map((field) => [field, item[field]]));

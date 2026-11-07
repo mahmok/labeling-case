@@ -105,12 +105,14 @@ describe("SQLiteLabelsRepository", () => {
     expect(result.map(({ name }) => name)).toEqual([`label-${marker}-b`]);
   });
 
-  test("updates nickname and primary status", async () => {
+  test("updates vendor and mutable fields", async () => {
     const label = await createLabel();
-    const nickname = `Updated ${crypto.randomUUID()}`;
-    const updated = await updateLabels([{ id: label.id, isPrimary: true, nickname }]);
+    const name = `Updated ${crypto.randomUUID()}`;
+    const version = `updated-${crypto.randomUUID()}`;
+    const nickname = `nickname-${crypto.randomUUID()}`;
+    const updated = await updateLabels([{ id: label.id, isPrimary: true, name, nickname, version }]);
 
-    expect(updated).toMatchObject([{ id: label.id, isPrimary: true, nickname }]);
+    expect(updated).toMatchObject([{ id: label.id, isPrimary: true, name, nickname, version }]);
   });
 
   test("clears a label nickname", async () => {

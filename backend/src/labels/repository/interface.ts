@@ -11,6 +11,8 @@ export type CreateLabelInput = {
 
 export type UpdateLabelInput = {
   id: string;
+  name?: string;
+  version?: string;
   nickname?: string | null;
   isPrimary?: boolean;
 };

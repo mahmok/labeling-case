@@ -72,7 +72,7 @@ export const PostgresLabelsRepository: LabelsRepository<PostgresTransaction> = {
       const ids = input.map(({ id }) => id);
       if (new Set(ids).size !== ids.length) return err(new Error("Duplicate label IDs"));
 
-      const fields = ["nickname", "isPrimary"] as const;
+      const fields = ["name", "version", "nickname", "isPrimary"] as const;
       const updates = Object.fromEntries(
         fields
           .filter((field) => input.some((item) => item[field] !== undefined))
