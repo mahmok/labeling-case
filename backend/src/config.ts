@@ -3,7 +3,9 @@ export interface Config {
     port: number;
   };
   database: {
+    name: string;
     host: string;
+    port: number;
     user: string;
     password: string;
     dialect: "postgresql" | "sqlite";
@@ -49,7 +51,9 @@ export const config: Config = {
   database: {
     dialect: getOptionalEnvVar("DATABASE_DIALECT", "postgresql") as "postgresql" | "sqlite",
     host: getOptionalEnvVar("DATABASE_HOST", "localhost"),
+    name: getOptionalEnvVar("DATABASE_NAME", "labeling"),
     password: getOptionalEnvVar("DATABASE_PASS", "labeling"),
+    port: getOptionalEnvVar("DATABASE_PORT", 5432, Number),
     user: getOptionalEnvVar("DATABASE_USER", "labeling"),
   },
   logger: {

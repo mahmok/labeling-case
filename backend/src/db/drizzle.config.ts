@@ -3,10 +3,10 @@ import { config } from "../config.ts";
 
 export default defineConfig({
   dbCredentials: {
-    database: "labeling",
+    database: config.database.name,
     host: config.database.host,
     password: config.database.password,
-    port: 5432,
+    port: config.database.port,
     ssl: false,
     user: config.database.user,
   },

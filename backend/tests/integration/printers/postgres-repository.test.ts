@@ -20,6 +20,7 @@ let pool: Pool | undefined;
 let testDb: TestDatabase;
 
 const unitOfWork = createUnitOfWork<TestTransaction>((operation) => testDb.transaction(operation));
+const closeTestDatabase = (): Promise<void> => (pool ? pool.end() : Promise.resolve());
 const printersApi = createPrintersApi({ repository: PostgresPrintersRepository, uow: unitOfWork });
 
 const createPrinter = async (overrides: Partial<CreatePrinterInput> = {}): Promise<Printer> => {
@@ -58,12 +59,12 @@ describe("PostgresPrintersRepository", () => {
   }, 120_000);
 
   afterAll(async () => {
-    await pool?.end();
+    await closeTestDatabase();
     await container?.stop();
   }, 30_000);
 
   test("serves its OpenAPI document from the composed app", async () => {
-    const app = await createApp({ db: testDb, dialect: "postgresql", uow: unitOfWork });
+    const app = await createApp({ close: closeTestDatabase, db: testDb, dialect: "postgresql", uow: unitOfWork });
     const response = await app.api.request("/api/v1/printers/openapi.json");
     const document = (await response.json()) as { paths: Record<string, unknown> };
 

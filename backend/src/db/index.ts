@@ -4,28 +4,31 @@ import { config } from "../config.ts";
 import { logger } from "../logger";
 import type { PostgresTransaction } from "./postgres/postgres.ts";
 import type PostgresSchema from "./postgres/schema.ts";
-import { PostgresUnitOfWork } from "./postgres/unit-of-work.ts";
-import { type SQLiteTransaction, SQLiteUnitOfWork } from "./sqlite/unit-of-work.ts";
+import type { SQLiteTransaction } from "./sqlite/unit-of-work.ts";
 import type { UnitOfWork } from "./unit-of-work.ts";
 
 type PostgresDatabase = NodePgDatabase<typeof PostgresSchema>;
 
+type CloseDatabase = { close: () => Promise<void> };
+
 export type Database =
-  | { dialect: "sqlite"; db: LibSQLDatabase; uow: UnitOfWork<SQLiteTransaction> }
-  | { dialect: "postgresql"; db: PostgresDatabase; uow: UnitOfWork<PostgresTransaction> };
+  | ({ dialect: "sqlite"; db: LibSQLDatabase; uow: UnitOfWork<SQLiteTransaction> } & CloseDatabase)
+  | ({ dialect: "postgresql"; db: PostgresDatabase; uow: UnitOfWork<PostgresTransaction> } & CloseDatabase);
 
 export const createDatabase = async (): Promise<Database> => {
   const dialect = config.database.dialect;
 
   if (dialect === "sqlite") {
-    const { db } = await import("./sqlite/sqlite.ts");
-    return { db, dialect, uow: SQLiteUnitOfWork };
+    const { close, db } = await import("./sqlite/sqlite.ts");
+    const { SQLiteUnitOfWork } = await import("./sqlite/unit-of-work.ts");
+    return { close, db, dialect, uow: SQLiteUnitOfWork };
   }
 
   if (dialect === "postgresql") {
-    const { db } = await import("./postgres/postgres.ts");
+    const { close, db } = await import("./postgres/postgres.ts");
+    const { PostgresUnitOfWork } = await import("./postgres/unit-of-work.ts");
     logger.info({ msg: `Connected to PostgreSQL database at ${config.database.host}` });
-    return { db, dialect, uow: PostgresUnitOfWork };
+    return { close, db, dialect, uow: PostgresUnitOfWork };
   }
 
   throw new Error(`Unsupported database: ${dialect}`);

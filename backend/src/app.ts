@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import type { Database } from "./db";
+import { createDatabase, type Database } from "./db";
 import { createPrintersApi } from "./printers";
 import { fromDialect } from "./printers/repository";
 
@@ -14,7 +14,8 @@ const createRootApi = (): Hono => {
   return api;
 };
 
-export const createApp = async (db: Database): Promise<App> => {
+export const createApp = async (database?: Database): Promise<App> => {
+  const db = database ?? (await createDatabase());
   const api = createRootApi();
   const v1 = api.basePath("/api").basePath("/v1");
 

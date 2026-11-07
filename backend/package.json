@@ -24,6 +24,7 @@
     "dev": "bun run --watch index.ts",
     "start": "bun run index.ts",
     "test": "bun test",
+    "test:e2e": "bun test tests/e2e",
     "test:integration": "bun test tests/integration",
     "test:unit": "bun test src",
     "test:watch": "bun test --watch"

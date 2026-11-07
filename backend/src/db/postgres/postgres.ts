@@ -4,13 +4,14 @@ import { config } from "../../config.ts";
 import schema from "./schema.ts";
 
 const pool = new Pool({
-  database: "labeling",
+  database: config.database.name,
   host: config.database.host,
   password: config.database.password,
-  port: 5432,
+  port: config.database.port,
   user: config.database.user,
 });
 
 export const db = drizzle(pool, { schema });
+export const close = (): Promise<void> => pool.end();
 
 export type PostgresTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
