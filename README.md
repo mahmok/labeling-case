@@ -32,6 +32,8 @@ Alternatively, run the full stack in Docker:
 docker compose --profile full up --build
 ```
 
+Open the frontend at <http://localhost:8080>.
+
 ## Tests
 
 ```bash
@@ -47,3 +49,4 @@ Integration and end-to-end tests use Testcontainers; see [`backend/tests/README.
 - Runtime configuration: [`backend/src/config.ts`](backend/src/config.ts)
 - Database schemas and migrations: [`backend/src`](backend/src), [`backend/migrations`](backend/migrations)
 - Backend container image: [`backend/Dockerfile`](backend/Dockerfile)
+- Frontend container image: [`frontend/Dockerfile`](frontend/Dockerfile)

@@ -61,3 +61,15 @@ services:
         condition: service_completed_successfully
     ports:
       - "3001:3001"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    image: labeling-frontend:local
+    profiles: [full]
+    depends_on:
+      - api
+      - worker
+    ports:
+      - "8080:80"
