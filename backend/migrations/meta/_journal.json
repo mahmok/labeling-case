@@ -7,6 +7,20 @@
       "tag": "0000_create_printers",
       "version": "7",
       "when": 1794015317915
+    },
+    {
+      "breakpoints": true,
+      "idx": 1,
+      "tag": "0001_create_labels",
+      "version": "7",
+      "when": 1794017708857
+    },
+    {
+      "breakpoints": true,
+      "idx": 2,
+      "tag": "0002_add_timestamps_to_labels",
+      "version": "7",
+      "when": 1794019483495
     }
   ],
   "version": "7"

@@ -1,29 +1,21 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
-import { drizzle, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
-import { Pool } from "pg";
-import { createApp } from "../../../src/app.ts";
-import schema from "../../../src/db/postgres/schema.ts";
-import { createUnitOfWork } from "../../../src/db/unit-of-work.ts";
-import { createPrintersApi } from "../../../src/printers";
+import type { Hono } from "hono";
+import { config } from "../../../src/config.ts";
+import { createDatabase } from "../../../src/db";
+import type { PostgresTransaction } from "../../../src/db/postgres/postgres.ts";
+import type { UnitOfWork } from "../../../src/db/unit-of-work.ts";
+import { createPrintersApi, createPrinterUseCases } from "../../../src/printers";
 import type { Printer } from "../../../src/printers/domain.ts";
-import type { CreatePrinterInput } from "../../../src/printers/repository/interface.ts";
+import type { CreatePrinterInput, GetPrintersInput } from "../../../src/printers/repository/interface.ts";
 import { PostgresPrintersRepository } from "../../../src/printers/repository/postgres.ts";
-import { createPrinterUseCases } from "../../../src/printers/use-cases.ts";
-
-type TestDatabase = NodePgDatabase<typeof schema>;
-type TestTransaction = Parameters<Parameters<TestDatabase["transaction"]>[0]>[0];
 
 let container: StartedPostgreSqlContainer | undefined;
-let pool: Pool | undefined;
-let testDb: TestDatabase;
-
-const unitOfWork = createUnitOfWork<TestTransaction>((operation) => testDb.transaction(operation));
-const closeTestDatabase = (): Promise<void> => (pool ? pool.end() : Promise.resolve());
-const printersUseCases = createPrinterUseCases({ repository: PostgresPrintersRepository, uow: unitOfWork });
-const printersApi = createPrintersApi(printersUseCases);
+let unitOfWork: UnitOfWork<PostgresTransaction>;
+let closeTestDatabase: () => Promise<void> = async () => {};
+let printersApi: Hono;
 
 const createPrinter = async (overrides: Partial<CreatePrinterInput> = {}): Promise<Printer> => {
   const unique = crypto.randomUUID();
@@ -42,7 +34,7 @@ const createPrinter = async (overrides: Partial<CreatePrinterInput> = {}): Promi
   return printer;
 };
 
-const getPrinters = async (input: Parameters<typeof PostgresPrintersRepository.get>[0]): Promise<Printer[]> => {
+const getPrinters = async (input: GetPrintersInput): Promise<Printer[]> => {
   const result = await unitOfWork.execute((tx) => PostgresPrintersRepository.get(input, tx));
   if (!result.isOk) throw result.error;
   return result.value;
@@ -55,25 +47,27 @@ describe("PostgresPrintersRepository", () => {
       .withUsername("test")
       .withPassword("test")
       .start();
-    pool = new Pool({ connectionString: container.getConnectionUri() });
-    testDb = drizzle(pool, { schema });
-    await migrate(testDb, { migrationsFolder: resolve(import.meta.dir, "../../../migrations") });
+    Object.assign(config.database, {
+      dialect: "postgresql",
+      host: container.getHost(),
+      name: container.getDatabase(),
+      password: container.getPassword(),
+      port: container.getMappedPort(5432),
+      user: container.getUsername(),
+    });
+
+    const database = await createDatabase();
+    if (database.dialect !== "postgresql") throw new Error("Expected PostgreSQL database");
+    unitOfWork = database.uow;
+    closeTestDatabase = database.close;
+    printersApi = createPrintersApi(createPrinterUseCases({ repository: PostgresPrintersRepository, uow: unitOfWork }));
+    await migrate(database.db, { migrationsFolder: resolve(import.meta.dir, "../../../migrations") });
   }, 120_000);
 
   afterAll(async () => {
     await closeTestDatabase();
     await container?.stop();
   }, 30_000);
-
-  test("serves its OpenAPI document from the composed app", async () => {
-    const app = await createApp({ close: closeTestDatabase, db: testDb, dialect: "postgresql", uow: unitOfWork });
-    const response = await app.api.request("/api/v1/printers/openapi.json");
-    const document = (await response.json()) as { paths: Record<string, unknown> };
-
-    expect(response.status).toBe(200);
-    expect(document.paths).toHaveProperty("/");
-    expect(document.paths).toHaveProperty("/{id}");
-  });
 
   test("creates, filters, and updates printers by nickname", async () => {
     const marker = crypto.randomUUID();

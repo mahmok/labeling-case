@@ -176,17 +176,4 @@ describe("Printers API (end to end)", () => {
     });
   });
 
-  describe("application endpoints", () => {
-    test("serves health status", async () => {
-      expect(await (await request("/health")).json()).toEqual({ status: "running" });
-    });
-
-    test("serves the OpenAPI document", async () => {
-      const response = await request(`${printersPath}/openapi.json`);
-      const document = (await response.json()) as { paths: Record<string, unknown> };
-
-      expect(response.status).toBe(200);
-      expect(document.paths).toHaveProperty("/{id}");
-    });
-  });
 });

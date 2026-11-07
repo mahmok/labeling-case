@@ -23,9 +23,9 @@
     "db:push": "drizzle-kit push --config=src/db/drizzle.config.ts",
     "dev": "bun run --watch index.ts",
     "start": "bun run index.ts",
-    "test": "bun test",
-    "test:e2e": "bun test tests/e2e",
-    "test:integration": "bun test tests/integration",
+    "test": "bun test --isolate",
+    "test:e2e": "bun test --isolate tests/e2e",
+    "test:integration": "bun test --isolate tests/integration",
     "test:unit": "bun test src",
     "test:watch": "bun test --watch"
   },

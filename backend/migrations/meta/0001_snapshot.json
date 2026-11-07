@@ -1,0 +1,126 @@
+{
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  },
+  "dialect": "postgresql",
+  "enums": {},
+  "id": "85441ebc-82b6-4db4-8e2d-33d0492d317c",
+  "policies": {},
+  "prevId": "8437d945-6e83-48d2-b27a-fddef373aed4",
+  "roles": {},
+  "schemas": {},
+  "sequences": {},
+  "tables": {
+    "public.labels": {
+      "checkConstraints": {},
+      "columns": {
+        "id": {
+          "name": "id",
+          "notNull": true,
+          "primaryKey": true,
+          "type": "varchar(255)"
+        },
+        "is_primary": {
+          "default": false,
+          "name": "is_primary",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "boolean"
+        },
+        "name": {
+          "name": "name",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        },
+        "nickname": {
+          "name": "nickname",
+          "notNull": false,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        },
+        "version": {
+          "name": "version",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "foreignKeys": {},
+      "indexes": {},
+      "isRLSEnabled": false,
+      "name": "labels",
+      "policies": {},
+      "schema": "",
+      "uniqueConstraints": {}
+    },
+    "public.printers": {
+      "checkConstraints": {},
+      "columns": {
+        "created_at": {
+          "default": "now()",
+          "name": "created_at",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "timestamp"
+        },
+        "id": {
+          "name": "id",
+          "notNull": true,
+          "primaryKey": true,
+          "type": "uuid"
+        },
+        "location": {
+          "name": "location",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        },
+        "model": {
+          "name": "model",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        },
+        "name": {
+          "name": "name",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        },
+        "nickname": {
+          "name": "nickname",
+          "notNull": false,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        },
+        "serial_number": {
+          "name": "serial_number",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "varchar(255)"
+        },
+        "updated_at": {
+          "default": "now()",
+          "name": "updated_at",
+          "notNull": true,
+          "primaryKey": false,
+          "type": "timestamp"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "foreignKeys": {},
+      "indexes": {},
+      "isRLSEnabled": false,
+      "name": "printers",
+      "policies": {},
+      "schema": "",
+      "uniqueConstraints": {}
+    }
+  },
+  "version": "7",
+  "views": {}
+}

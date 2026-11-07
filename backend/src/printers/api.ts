@@ -2,7 +2,7 @@ import { type Context, Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ResponsesWithResolver } from "hono-openapi";
-import { describeRoute, openAPIRouteHandler, resolver, validator } from "hono-openapi";
+import { describeRoute, resolver, validator } from "hono-openapi";
 import { z } from "zod";
 import type { Result } from "../utils/result.ts";
 import type { GetPrintersInput } from "./repository/interface.ts";
@@ -108,18 +108,6 @@ export const createPrintersApi = (useCases: PrinterUseCases): Hono => {
     const message = failure instanceof HTTPException ? failure.message : "Internal server error";
     return c.json({ error: { message } }, status as ContentfulStatusCode);
   });
-
-  app.get(
-    "/openapi.json",
-    openAPIRouteHandler(app, {
-      defaultValidationErrorResponse: false,
-      documentation: {
-        info: { title: "Printers API", version: "1.0.0" },
-        openapi: "3.1.0",
-        servers: [{ url: "/api/v1/printers" }],
-      },
-    }),
-  );
 
   app.get(
     "/",
