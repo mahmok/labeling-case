@@ -1,6 +1,7 @@
 import type { JSX } from "react";
 import { ServiceHealthTooltip } from "./service-health-tooltip.tsx";
 import { DRAWER_ID } from "./sidebar.tsx";
+import { ThemeSwitcher } from "./theme-switcher.tsx";
 
 export const TopBar = (): JSX.Element => (
   <header className="navbar sticky top-0 z-10 min-h-16 border-b border-base-300 bg-base-100/95 px-4 backdrop-blur sm:px-8">
@@ -25,7 +26,8 @@ export const TopBar = (): JSX.Element => (
       </label>
       <span className="text-sm font-medium text-base-content/60">Labeling platform</span>
     </div>
-    <div className="navbar-end">
+    <div className="navbar-end gap-2">
+      <ThemeSwitcher />
       <ServiceHealthTooltip />
     </div>
   </header>
