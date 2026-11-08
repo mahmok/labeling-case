@@ -110,4 +110,37 @@ describe("Prints API (end to end)", () => {
       expect(await response.json()).toEqual({ error: { message: "Content-Type must be application/json" } });
     }
   });
+
+  test("a print survives its printer being deleted and is relinked after the printer is synced back", async () => {
+    const synced = await application.useCases.printers.sync();
+    if (!synced.isOk) throw synced.error;
+    const printerName = "Office Printer";
+    const listPrinters = async (): Promise<{ id: string; name: string }[]> =>
+      (
+        (await (await request(`/api/v1/printers?name=${encodeURIComponent(printerName)}`)).json()) as {
+          data: { id: string; name: string }[];
+        }
+      ).data;
+    const [original] = await listPrinters();
+    if (!original) throw new Error("Expected the synced printer to exist");
+
+    const created = await post("/api/v1/prints", { labelId: "lbl-001", printerName });
+    const { data: print } = (await created.json()) as { data: { id: string } };
+    expect(created.status).toBe(201);
+
+    const removed = await fetch(`${origin}/api/v1/printers/${original.id}`, { method: "DELETE" });
+    expect(removed.status).toBe(204);
+    const afterDelete = await request(`/api/v1/prints/${print.id}`);
+    expect(await afterDelete.json()).toMatchObject({ data: { printer: { id: null, name: printerName } } });
+
+    const resynced = await application.useCases.printers.sync();
+    if (!resynced.isOk) throw resynced.error;
+    const [recreated] = await listPrinters();
+    expect(recreated?.id).not.toBe(original.id);
+
+    const backfilled = await application.useCases.prints.backfillPrints();
+    if (!backfilled.isOk) throw backfilled.error;
+    const afterBackfill = await request(`/api/v1/prints/${print.id}`);
+    expect(await afterBackfill.json()).toMatchObject({ data: { printer: { id: recreated?.id, name: printerName } } });
+  });
 });

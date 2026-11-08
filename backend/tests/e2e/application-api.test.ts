@@ -48,6 +48,13 @@ describe("Application", () => {
     expect(await (await request("/health")).json()).toEqual({ status: "running" });
   });
 
+  test("serves liveness separately from readiness", async () => {
+    const response = await request("/health/live");
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ status: "alive" });
+  });
+
   test("exposes vendor data use cases for other application modules", async () => {
     const [printers, labels] = await Promise.all([
       useCases.printers.getVendorPrinters(),
