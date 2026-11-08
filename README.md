@@ -1,6 +1,9 @@
 # Labeling Platform
 
-Bun/TypeScript backend for labeling workflows. The API and background worker run as separate processes.
+Full-stack TypeScript platform for labeling workflows: managing labels and printers, printing labels, and monitoring background jobs.
+
+- **Backend** ([`backend`](backend)): a Bun and Hono REST API plus a background worker. They run as separate processes and share one PostgreSQL database.
+- **Frontend** ([`frontend`](frontend)): a React single-page app built with Vite, with pages for prints, labels, printers and jobs.
 
 ## Setup
 
