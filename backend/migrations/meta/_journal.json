@@ -49,6 +49,13 @@
       "tag": "0006_create_prints_table",
       "version": "7",
       "when": 1794066832830
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794128925763,
+      "tag": "0007_add_prints_printer_fk",
+      "breakpoints": true
     }
   ],
   "version": "7"

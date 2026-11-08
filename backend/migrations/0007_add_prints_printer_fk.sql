@@ -1,0 +1,1 @@
+ALTER TABLE "prints" ADD CONSTRAINT "prints_printer_id_printers_id_fk" FOREIGN KEY ("printer_id") REFERENCES "public"."printers"("id") ON DELETE set null ON UPDATE no action;

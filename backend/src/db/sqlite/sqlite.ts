@@ -18,6 +18,8 @@ export const createSqliteDatabase = async (): Promise<{ db: SQLiteDatabase; clos
   const client = createClient({ url: "file::memory:" });
   const db = drizzle(client, { schema });
 
+  await client.execute("PRAGMA foreign_keys = ON");
+
   await client.execute(`
     CREATE TABLE IF NOT EXISTS printers (
       id TEXT PRIMARY KEY NOT NULL,
@@ -61,7 +63,7 @@ export const createSqliteDatabase = async (): Promise<{ db: SQLiteDatabase; clos
     CREATE TABLE IF NOT EXISTS prints (
       id TEXT PRIMARY KEY NOT NULL,
       triggered_by TEXT NOT NULL,
-      printer_id TEXT,
+      printer_id TEXT REFERENCES printers (id) ON DELETE SET NULL,
       printer_name TEXT NOT NULL,
       label_id TEXT NOT NULL,
       created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),

@@ -4,7 +4,8 @@ import { createDatabase } from "../../../src/db";
 import type { SQLiteTransaction } from "../../../src/db/sqlite/unit-of-work.ts";
 import type { UnitOfWork } from "../../../src/db/unit-of-work.ts";
 import { SQLiteLabelsRepository } from "../../../src/labels/repository/sqlite.ts";
-import type { Print } from "../../../src/prints/domain.ts";
+import { SQLitePrintersRepository } from "../../../src/printers/repository/sqlite.ts";
+import type { Print } from "../../../src/prints";
 import type { CreatePrintInput, GetPrintsInput } from "../../../src/prints/repository/interface.ts";
 import { SQLitePrintsRepository } from "../../../src/prints/repository/sqlite.ts";
 
@@ -33,6 +34,16 @@ const createLabel = async (id: string, name: string, version: string): Promise<v
   if (!result.isOk) throw result.error;
 };
 
+const createPrinter = async (name: string): Promise<string> => {
+  const result = await unitOfWork.execute((tx) =>
+    SQLitePrintersRepository.create([{ location: "", model: "model", name, serialNumber: "" }], tx),
+  );
+  if (!result.isOk) throw result.error;
+  const printer = result.value[0];
+  if (!printer) throw new Error("Expected printer creation to return a row");
+  return printer.id;
+};
+
 const getPrints = async (input: GetPrintsInput): Promise<Print[]> => {
   const result = await unitOfWork.execute((tx) => SQLitePrintsRepository.get(input, tx));
   if (!result.isOk) throw result.error;
@@ -54,7 +65,7 @@ describe("SQLitePrintsRepository", () => {
 
   test("persists the provided printer ID and vendor name without lookup", async () => {
     await createLabel("shipping-v2", "Shipping label", "2");
-    const printer = { id: crypto.randomUUID(), name: "Shipping printer" };
+    const printer = { id: await createPrinter("Shipping printer"), name: "Shipping printer" };
     const input: CreatePrintInput = {
       label: { id: "shipping-v2" },
       printer,

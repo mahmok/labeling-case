@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { printersTable } from "../../printers/schema/sqlite.ts";
 
 export const printsTable = sqliteTable(
   "prints",
@@ -9,7 +10,7 @@ export const printsTable = sqliteTable(
       .primaryKey()
       .$defaultFn(() => Bun.randomUUIDv7()),
     labelId: text("label_id").notNull(),
-    printerId: text("printer_id"),
+    printerId: text("printer_id").references(() => printersTable.id, { onDelete: "set null" }),
     printerName: text("printer_name").notNull(),
     triggeredBy: text("triggered_by").notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })

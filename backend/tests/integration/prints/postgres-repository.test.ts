@@ -7,6 +7,7 @@ import { createDatabase } from "../../../src/db";
 import type { PostgresTransaction } from "../../../src/db/postgres/postgres.ts";
 import type { UnitOfWork } from "../../../src/db/unit-of-work.ts";
 import { PostgresLabelsRepository } from "../../../src/labels/repository/postgres.ts";
+import { PostgresPrintersRepository } from "../../../src/printers/repository/postgres.ts";
 import type { Print } from "../../../src/prints";
 import type { CreatePrintInput, GetPrintsInput } from "../../../src/prints/repository/interface.ts";
 import { PostgresPrintsRepository } from "../../../src/prints/repository/postgres.ts";
@@ -35,6 +36,16 @@ const createLabel = async (id: string, name: string, version: string): Promise<v
     PostgresLabelsRepository.create([{ id, isPrimary: false, name, version }], tx),
   );
   if (!result.isOk) throw result.error;
+};
+
+const createPrinter = async (name: string): Promise<string> => {
+  const result = await unitOfWork.execute((tx) =>
+    PostgresPrintersRepository.create([{ location: "", model: "model", name, serialNumber: "" }], tx),
+  );
+  if (!result.isOk) throw result.error;
+  const printer = result.value[0];
+  if (!printer) throw new Error("Expected printer creation to return a row");
+  return printer.id;
 };
 
 const getPrints = async (input: GetPrintsInput): Promise<Print[]> => {
@@ -75,7 +86,8 @@ describe("PostgresPrintsRepository", () => {
     const marker = crypto.randomUUID();
     const labelId = `label-${marker}`;
     await createLabel(labelId, `Shipping ${marker}`, "v1");
-    const printer = { id: crypto.randomUUID(), name: `Shipping printer ${marker}` };
+    const printerName = `Shipping printer ${marker}`;
+    const printer = { id: await createPrinter(printerName), name: printerName };
     const input: CreatePrintInput = {
       label: { id: labelId },
       printer,
@@ -101,8 +113,8 @@ describe("PostgresPrintsRepository", () => {
   test("backfills null printer IDs in a batch", async () => {
     const first = await createPrint();
     const second = await createPrint();
-    const firstPrinterId = crypto.randomUUID();
-    const secondPrinterId = crypto.randomUUID();
+    const firstPrinterId = await createPrinter(`printer-${crypto.randomUUID()}`);
+    const secondPrinterId = await createPrinter(`printer-${crypto.randomUUID()}`);
 
     const result = await unitOfWork.execute((tx) =>
       PostgresPrintsRepository.updatePrinterIds(
@@ -124,6 +136,21 @@ describe("PostgresPrintsRepository", () => {
       );
     }
     expect(await getPrints({ id: [first.id, second.id], printerIdIsNull: true })).toEqual([]);
+  });
+
+  test("deleting a printer keeps its prints and clears their printer ID", async () => {
+    const printerName = `Removed printer ${crypto.randomUUID()}`;
+    const printerId = await createPrinter(printerName);
+    const print = await createPrint({ printer: { id: printerId, name: printerName } });
+
+    const deleted = await unitOfWork.execute((tx) => PostgresPrintersRepository.delete([printerId], tx));
+    expect(deleted.isOk).toBe(true);
+
+    expect(await getPrints({ id: [print.id] })).toEqual([{ ...print, printer: { id: null, name: printerName } }]);
+  });
+
+  test("rejects a printer ID that does not exist", async () => {
+    await expect(createPrint({ printer: { id: crypto.randomUUID(), name: "Ghost printer" } })).rejects.toBeDefined();
   });
 
   test("sorts, paginates, and deletes print records", async () => {

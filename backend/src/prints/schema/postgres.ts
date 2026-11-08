@@ -1,4 +1,5 @@
 import { index, pgTable, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
+import { printersTable } from "../../printers/schema/postgres.ts";
 
 export const printsTable = pgTable(
   "prints",
@@ -8,7 +9,7 @@ export const printsTable = pgTable(
       .primaryKey()
       .$defaultFn(() => Bun.randomUUIDv7()),
     labelId: varchar("label_id", { length: 255 }).notNull(),
-    printerId: uuid("printer_id"),
+    printerId: uuid("printer_id").references(() => printersTable.id, { onDelete: "set null" }),
     printerName: varchar("printer_name", { length: 255 }).notNull(),
     triggeredBy: varchar("triggered_by", { length: 255 }).notNull(),
     updatedAt: timestamp("updated_at")
