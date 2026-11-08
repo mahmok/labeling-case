@@ -18,7 +18,7 @@ export type JobsWorker = {
 };
 
 type ScheduleRunner = {
-  isRunning: (type: string) => boolean;
+  isRunning: (type: string) => Promise<Result<boolean, Error>>;
   run: (schedule: ScheduledJob) => Promise<void>;
 };
 
@@ -47,6 +47,15 @@ const recoverInterruptedJobs = async (useCases: JobsUseCases, type: string): Pro
     })),
   );
   return recovered.isOk ? ok() : recovered;
+};
+
+const isJobTypeRunning = async (useCases: JobsUseCases, type: string): Promise<Result<boolean, Error>> => {
+  const running = await useCases.getJobs({
+    pagination: { limit: 1, offset: 0 },
+    status: ["in_progress"],
+    type: [type],
+  });
+  return running.isOk ? ok(running.value.length > 0) : running;
 };
 
 const claimPendingJob = async (useCases: JobsUseCases, type: string): Promise<Result<Job | null, Error>> => {
@@ -138,13 +147,17 @@ const runAttempts = async (useCases: JobsUseCases, job: Job, schedule: Scheduled
 };
 
 export const runScheduledJob = async (useCases: JobsUseCases, schedule: ScheduledJob): Promise<Result<void, Error>> => {
-  const recovered = await recoverInterruptedJobs(useCases, schedule.type);
-  if (!recovered.isOk) return recovered;
+  const running = await isJobTypeRunning(useCases, schedule.type);
+  if (!running.isOk) return running;
+  if (running.value) {
+    logger.info({ jobType: schedule.type, msg: "Skipped scheduled job because it is already running" });
+    return ok();
+  }
 
   const claimed = await claimPendingJob(useCases, schedule.type);
   if (!claimed.isOk) return claimed;
   if (!claimed.value) {
-    logger.info({ jobType: schedule.type, msg: "No pending job was available" });
+    logger.info({ jobType: schedule.type, msg: "No job was claimed (none pending or the type is already running)" });
     return ok();
   }
 
@@ -159,7 +172,12 @@ export const startPendingApiJobs = async (
   const executions: Promise<void>[] = [];
 
   for (const schedule of schedules) {
-    if (runSchedule.isRunning(schedule.type)) continue;
+    const running = await runSchedule.isRunning(schedule.type);
+    if (!running.isOk) {
+      logger.error({ error: running.error, jobType: schedule.type, msg: "Failed to check for running jobs" });
+      continue;
+    }
+    if (running.value) continue;
 
     const pending = await useCases.getJobs({
       pagination: { limit: 1, offset: 0 },
@@ -177,29 +195,17 @@ export const startPendingApiJobs = async (
   return executions;
 };
 
-export const createScheduleRunner = (useCases: JobsUseCases): ScheduleRunner => {
-  const activeTypes = new Set<string>();
-
-  return {
-    isRunning: (type: string): boolean => activeTypes.has(type),
-    async run(schedule: ScheduledJob): Promise<void> {
-      if (activeTypes.has(schedule.type)) {
-        logger.info({ jobType: schedule.type, msg: "Skipped scheduled job because it is already running" });
-        return;
-      }
-
-      activeTypes.add(schedule.type);
-      try {
-        const result = await runScheduledJob(useCases, schedule);
-        if (!result.isOk) logger.error({ error: result.error, jobType: schedule.type, msg: "Scheduled job failed" });
-      } catch (error) {
-        logger.error({ error, jobType: schedule.type, msg: "Scheduled job crashed" });
-      } finally {
-        activeTypes.delete(schedule.type);
-      }
-    },
-  };
-};
+export const createScheduleRunner = (useCases: JobsUseCases): ScheduleRunner => ({
+  isRunning: (type: string): Promise<Result<boolean, Error>> => isJobTypeRunning(useCases, type),
+  async run(schedule: ScheduledJob): Promise<void> {
+    try {
+      const result = await runScheduledJob(useCases, schedule);
+      if (!result.isOk) logger.error({ error: result.error, jobType: schedule.type, msg: "Scheduled job failed" });
+    } catch (error) {
+      logger.error({ error, jobType: schedule.type, msg: "Scheduled job crashed" });
+    }
+  },
+});
 
 const validateRetryPolicies = (schedules: ScheduledJob[]): void => {
   for (const { type, retry } of schedules) {
@@ -218,13 +224,25 @@ const validateRetryPolicies = (schedules: ScheduledJob[]): void => {
   }
 };
 
+const recoverAllInterruptedJobs = async (useCases: JobsUseCases, schedules: ScheduledJob[]): Promise<void> => {
+  for (const { type } of schedules) {
+    try {
+      const recovered = await recoverInterruptedJobs(useCases, type);
+      if (!recovered.isOk) logger.error({ error: recovered.error, jobType: type, msg: "Failed to recover jobs" });
+    } catch (error) {
+      logger.error({ error, jobType: type, msg: "Failed to recover jobs" });
+    }
+  }
+};
+
 export const startJobsWorker = (useCases: JobsUseCases, schedules: ScheduledJob[]): JobsWorker => {
   validateRetryPolicies(schedules);
   const scheduleRunner = createScheduleRunner(useCases);
+  const recovery = recoverAllInterruptedJobs(useCases, schedules);
   const activeRuns = new Set<Promise<void>>();
   const run = (schedule: ScheduledJob): Promise<void> => {
     let execution: Promise<void>;
-    execution = scheduleRunner.run(schedule).finally(() => activeRuns.delete(execution));
+    execution = recovery.then(() => scheduleRunner.run(schedule)).finally(() => activeRuns.delete(execution));
     activeRuns.add(execution);
     return execution;
   };
@@ -235,6 +253,7 @@ export const startJobsWorker = (useCases: JobsUseCases, schedules: ScheduledJob[
     if (polling !== undefined) return polling;
     polling = (async () => {
       try {
+        await recovery;
         const executions = await startPendingApiJobs(useCases, schedules, trackedRunner);
         for (const execution of executions) void execution;
       } catch (error) {
@@ -257,6 +276,7 @@ export const startJobsWorker = (useCases: JobsUseCases, schedules: ScheduledJob[
     async stop(): Promise<void> {
       clearInterval(apiJobPoll);
       for (const cronJob of cronJobs) cronJob.stop();
+      await recovery;
       await polling;
       await Promise.all(activeRuns);
     },

@@ -123,13 +123,18 @@ describe("SQLiteJobsRepository", () => {
     expect(updated.value).toMatchObject([{ error: "vendor unavailable", id: job.id, status: "failed" }]);
   });
 
-  test("claims pending jobs of the requested type once and sets startedAt", async () => {
+  test("claims jobs of a type one at a time and sets startedAt", async () => {
     await createJob({ type: "sync-labels" });
     const first = await createJob({ type: "sync-printers" });
     await Bun.sleep(5);
     const second = await createJob({ type: "sync-printers" });
 
     const firstClaim = await claimNext("sync-printers");
+    const blockedClaim = await claimNext("sync-printers");
+    const completed = await unitOfWork.execute((tx) =>
+      SQLiteJobsRepository.update([{ id: first.id, status: "completed" }], tx),
+    );
+    if (!completed.isOk) throw completed.error;
     const secondClaim = await claimNext("sync-printers");
     const thirdClaim = await claimNext("sync-printers");
 
@@ -137,8 +142,8 @@ describe("SQLiteJobsRepository", () => {
     expect(firstClaim).toMatchObject({ attempts: 1, status: "in_progress" });
     expect(firstClaim?.startedAt).toBeInstanceOf(Date);
     expect(firstClaim?.durationMs).toBeGreaterThanOrEqual(0);
+    expect(blockedClaim).toBeNull();
     expect(secondClaim?.id).toBe(second.id);
-    expect(secondClaim).toMatchObject({ attempts: 1, status: "in_progress" });
     expect(thirdClaim).toBeNull();
     expect((await getJobs({ type: ["sync-labels"] }))[0]?.status).toBe("pending");
   });

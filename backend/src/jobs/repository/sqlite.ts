@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notExists, type SQL, sql } from "drizzle-orm";
 import type { SQLiteTransaction } from "../../db/sqlite/unit-of-work.ts";
 import { asError, err, ok, type Result } from "../../utils/result.ts";
 import type { Job } from "../domain.ts";
@@ -18,7 +18,19 @@ export const SQLiteJobsRepository: JobsRepository<SQLiteTransaction> = {
       const [claimed] = await tx
         .update(jobsTable)
         .set({ attempts: sql`${jobsTable.attempts} + 1`, startedAt: new Date(), status: "in_progress" })
-        .where(and(eq(jobsTable.status, "pending"), eq(jobsTable.type, type), inArray(jobsTable.id, candidate)))
+        .where(
+          and(
+            eq(jobsTable.status, "pending"),
+            eq(jobsTable.type, type),
+            inArray(jobsTable.id, candidate),
+            notExists(
+              tx
+                .select({ id: jobsTable.id })
+                .from(jobsTable)
+                .where(and(eq(jobsTable.status, "in_progress"), eq(jobsTable.type, type))),
+            ),
+          ),
+        )
         .returning();
       return ok(claimed ? toJob(claimed) : null);
     } catch (error) {

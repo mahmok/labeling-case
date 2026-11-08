@@ -154,7 +154,7 @@ describe("PostgresJobsRepository", () => {
     expect((await getJobs({ type: ["sync-labels"] }))[0]?.status).toBe("pending");
   });
 
-  test("concurrent claims return distinct pending jobs", async () => {
+  test("concurrent claims of one type start only one job", async () => {
     const jobs = await Promise.all([
       createJob({ type: "sync-printers" }),
       createJob({ type: "sync-printers" }),
@@ -166,9 +166,10 @@ describe("PostgresJobsRepository", () => {
     const claimedJobs = claimed.filter((job): job is Job => job !== null);
     const claimedIds = claimedJobs.map(({ id }) => id);
 
-    expect(claimedJobs).toHaveLength(jobs.length);
-    expect(new Set(claimedIds).size).toBe(jobs.length);
-    expect(claimedJobs.every(({ attempts, status }) => attempts === 1 && status === "in_progress")).toBe(true);
+    expect(claimedJobs).toHaveLength(1);
+    expect(claimedIds[0]).toBeDefined();
+    expect(claimedJobs[0]).toMatchObject({ attempts: 1, status: "in_progress" });
+    expect(await getJobs({ status: ["in_progress"], type: ["sync-printers"] })).toHaveLength(1);
   });
 
   test("deletes only requested jobs", async () => {

@@ -17,6 +17,14 @@ const buildCase = <K extends keyof UpdateJobInput>(field: K, input: UpdateJobInp
 export const PostgresJobsRepository: JobsRepository<PostgresTransaction> = {
   async claimNext(type: string, tx: PostgresTransaction): Promise<Result<Job | null, Error>> {
     try {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${`jobs:${type}`}))`);
+      const [running] = await tx
+        .select({ id: jobsTable.id })
+        .from(jobsTable)
+        .where(and(eq(jobsTable.status, "in_progress"), eq(jobsTable.type, type)))
+        .limit(1);
+      if (running) return ok(null);
+
       const [candidate] = await tx
         .select({ id: jobsTable.id })
         .from(jobsTable)

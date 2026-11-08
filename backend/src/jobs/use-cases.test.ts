@@ -268,6 +268,26 @@ describe("Job use cases", () => {
     });
   });
 
+  test("a starting worker marks jobs left in progress by a stopped worker as failed", async () => {
+    const stale = await createJob({ type: "sync-printers" });
+    await useCases.claimNextJob(stale.type);
+    const worker = startJobsWorker(useCases, [
+      {
+        cron: "0 0 1 1 *",
+        retry: { initialDelayMs: 0, maxAttempts: 1, maxDelayMs: 0, multiplier: 1 },
+        run: async () => ok({ synced: 1 }),
+        runOnStartup: false,
+        type: "sync-printers",
+      },
+    ]);
+    await worker.stop();
+
+    expect(await useCases.getJobs({ id: [stale.id] })).toMatchObject({
+      isOk: true,
+      value: [{ error: "Previous worker stopped before completing the job", status: "failed" }],
+    });
+  });
+
   test("claimNextJob claims a pending job of the requested type", async () => {
     await createJob({ type: "sync-labels" });
     const job = await createJob({ type: "sync-printers" });
