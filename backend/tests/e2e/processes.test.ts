@@ -5,6 +5,12 @@ import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testconta
 const backendDir = resolve(import.meta.dir, "../..");
 
 type Job = { id: string; type: string; status: string; triggeredBy: string; result: unknown };
+type SyncResult = {
+  counts: { created: number; updated: number; deleted: number };
+  created: object[];
+  updated: object[];
+  deleted: object[];
+};
 type Process = Bun.Subprocess<"ignore", "ignore", "pipe">;
 
 let container: StartedPostgreSqlContainer | undefined;
@@ -109,6 +115,14 @@ describe("Running processes (end to end)", () => {
     });
 
     expect(jobs.every(({ triggeredBy }) => triggeredBy === "system")).toBe(true);
+    for (const type of ["sync-printers", "sync-labels"]) {
+      const result = jobs.find((job) => job.type === type)?.result as SyncResult | undefined;
+      expect(result?.counts.created).toBeGreaterThan(0);
+      expect(result?.created).toHaveLength(result?.counts.created ?? -1);
+      expect(result?.created[0]).toHaveProperty("id");
+      expect(result?.updated).toEqual([]);
+      expect(result?.deleted).toEqual([]);
+    }
     const printers = (await (await fetch(`${apiUrl}/api/v1/printers`)).json()) as { data: unknown[] };
     const labels = (await (await fetch(`${apiUrl}/api/v1/labels`)).json()) as { data: unknown[] };
     expect(printers.data.length).toBeGreaterThan(0);

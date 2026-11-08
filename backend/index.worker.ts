@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { createApplication } from "./src/application.ts";
 import { config } from "./src/config.ts";
 import { createHealthHandler, livenessHandler } from "./src/health.ts";
-import { type ScheduledJob, startJobsWorker } from "./src/jobs";
+import { type ScheduledJob, startJobsWorker, syncJobResult } from "./src/jobs";
 import { logger } from "./src/logger";
 import { err, ok } from "./src/utils/result.ts";
 
@@ -22,12 +22,7 @@ void (async () => {
       retry: config.jobs.printers.retry,
       run: async () => {
         const result = await application.useCases.printers.sync();
-        if (!result.isOk) return err(result.error);
-        return ok({
-          created: result.value.created.length,
-          deleted: result.value.deleted.length,
-          updated: result.value.updated.length,
-        });
+        return result.isOk ? ok(syncJobResult(result.value)) : err(result.error);
       },
       runOnStartup: config.jobs.printers.runOnStartup,
       type: "sync-printers",
@@ -37,12 +32,7 @@ void (async () => {
       retry: config.jobs.labels.retry,
       run: async () => {
         const result = await application.useCases.labels.sync();
-        if (!result.isOk) return err(result.error);
-        return ok({
-          created: result.value.created.length,
-          deleted: result.value.deleted.length,
-          updated: result.value.updated.length,
-        });
+        return result.isOk ? ok(syncJobResult(result.value)) : err(result.error);
       },
       runOnStartup: config.jobs.labels.runOnStartup,
       type: "sync-labels",

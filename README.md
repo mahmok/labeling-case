@@ -50,6 +50,7 @@ Integration and end-to-end tests use Testcontainers; see [`backend/tests/README.
 - [Tech stack](doc/tech-stack.md): high-level view of the technologies used and what each is for
 - [Backend architecture](doc/backend-architecture.md): conceptual and concrete views of the backend structure
 - [Design principles](doc/design-principles.md): the main design decisions behind the system
+- [Jobs module](backend/src/jobs/README.md): the supported background jobs, their schedules and the job lifecycle
 - [AWS deployment options](doc/deployment.md): ways to deploy to AWS, with diagrams
 
 ## Reference

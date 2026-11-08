@@ -7,6 +7,8 @@ export type {
   JobsRepository,
   UpdateJobInput,
 } from "./repository/interface.ts";
+export type { SyncChanges } from "./results.ts";
+export { syncJobResult } from "./results.ts";
 export type { JobsUseCases } from "./use-cases.ts";
 export { createJobUseCases } from "./use-cases.ts";
 export type { JobsWorker, ScheduledJob } from "./worker.ts";
