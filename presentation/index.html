@@ -192,9 +192,17 @@
       <div class="diagram-wrap"><div class="diagram" data-diagram="src-concrete"></div></div>
     </section>
 
+    <!-- 7b. Jobs lifecycle -->
+    <section class="slide diagram-slide" data-title="Jobs lifecycle">
+      <p class="kicker">07 · Backend · Jobs</p>
+      <h2>Job lifecycle</h2>
+      <p class="lead">A job moves from pending to completed or failed. Failed attempts retry with a growing delay.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-jobs"></div></div>
+    </section>
+
     <!-- 8. Deployment option 1 -->
     <section class="slide diagram-slide" data-title="Deployment: option 1">
-      <p class="kicker">08 · Deployment · Option 1</p>
+      <p class="kicker">09 · Deployment · Option 1</p>
       <h2>ECS + RDS + S3 / CloudFront</h2>
       <p class="lead">Two ECS services in a VPC. A public load balancer routes to the API. The UI is static on S3 behind CloudFront.</p>
       <div class="diagram-wrap"><div class="diagram" data-diagram="src-opt1"></div></div>
@@ -202,7 +210,7 @@
 
     <!-- 9. Deployment option 2 -->
     <section class="slide diagram-slide" data-title="Deployment: option 2">
-      <p class="kicker">09 · Deployment · Option 2</p>
+      <p class="kicker">10 · Deployment · Option 2</p>
       <h2>Serverless: Lambda + API Gateway + EventBridge</h2>
       <p class="lead">No always-on containers. EventBridge schedules run the jobs, and RDS Proxy keeps database connections in check.</p>
       <div class="diagram-wrap"><div class="diagram" data-diagram="src-opt2"></div></div>
@@ -210,7 +218,7 @@
 
     <!-- 10. Things I thought of -->
     <section class="slide" data-title="Ideas I explored">
-      <p class="kicker">10 · Ideas</p>
+      <p class="kicker">11 · Ideas</p>
       <h2>Things I thought of implementing</h2>
       <p class="lead">Two ideas I considered but haven't built yet.</p>
       <div class="cards">
@@ -221,7 +229,7 @@
 
     <!-- 11. Things to add or change (1/2) -->
     <section class="slide" data-title="Things I would change (1 of 2)">
-      <p class="kicker">11 · Next steps · 1 of 2</p>
+      <p class="kicker">12 · Next steps · 1 of 2</p>
       <h2>Things I would add or change</h2>
       <p class="lead">Security, data integrity, events and structure.</p>
       <div class="cards">
@@ -234,7 +242,7 @@
 
     <!-- 12. Things to add or change (2/2) -->
     <section class="slide" data-title="Things I would change (2 of 2)">
-      <p class="kicker">12 · Next steps · 2 of 2</p>
+      <p class="kicker">13 · Next steps · 2 of 2</p>
       <h2>More things I would change</h2>
       <p class="lead">Smaller changes that pay off quickly.</p>
       <div class="cards">
@@ -489,6 +497,17 @@ flowchart BT
     UOW -->|"injected into"| CR
     CONFIG -->|"selects dialect, schedules, ports"| CR
     LOGGING -->|"used by"| entry
+</script>
+  <script type="text/plain" id="src-jobs">
+stateDiagram-v2
+    [*] --> pending: created
+    pending --> in_progress: claimed
+    in_progress --> in_progress: retry later
+    in_progress --> completed: succeeded
+    in_progress --> failed: gave up
+    in_progress --> failed: worker stopped
+    completed --> [*]
+    failed --> [*]
 </script>
   <script type="text/plain" id="src-opt1">
 architecture-beta

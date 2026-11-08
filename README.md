@@ -54,6 +54,7 @@ Integration and end-to-end tests use Testcontainers; see [`backend/tests/README.
 - [Design principles](doc/design-principles.md): the main design decisions behind the system
 - [CLI](backend/src/cli/README.md): query printers, labels, prints and jobs, print a label or queue a job from the command line
 - [Jobs module](backend/src/jobs/README.md): the supported background jobs, their schedules and the job lifecycle
+- [Database ERD](doc/erd.md): the tables, their columns and how they relate
 - [AWS deployment options](doc/deployment.md): ways to deploy to AWS, with diagrams
 
 ## Reference
