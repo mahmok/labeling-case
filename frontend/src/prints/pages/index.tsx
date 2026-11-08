@@ -13,7 +13,7 @@ const EMPTY_PRINTS: Print[] = [];
 const INITIAL_SORTING: SortingState = [{ desc: true, id: "createdAt" }];
 const column = createColumnHelper<typeof tableFeatures, Print>();
 const columns = column.columns([
-  column.accessor((print) => print.label.name ?? "Unknown label", { header: "Label", id: "labelName" }),
+  column.accessor((print) => print.label.name ?? print.label.id, { header: "Label", id: "labelName" }),
   column.accessor("label.version", {
     cell: ({ getValue }: CellContext<typeof tableFeatures, Print, string | null>) => getValue() ?? "—",
     header: "Version",

@@ -99,7 +99,9 @@ export const PrintDialog = ({ isOpen, onClose }: PrintDialogProps): JSX.Element 
           </option>
           {printers.map((printer) => (
             <option key={printer.id} value={printer.name}>
-              {printer.nickname || printer.name} · {printer.location}
+              {printer.location
+                ? `${printer.nickname || printer.name} · ${printer.location}`
+                : printer.nickname || printer.name}
             </option>
           ))}
         </select>
