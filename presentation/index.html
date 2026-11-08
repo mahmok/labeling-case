@@ -46,6 +46,7 @@
     /* Cards */
     .cards { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); align-content: start; }
     .slide:not(.diagram-slide):not(.title):not(.thanks) .cards { margin-top: 0.6rem; }
+    .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .card { background: var(--card); border: 1px solid #fff; border-radius: 22px; padding: 1.4rem 1.5rem; box-shadow: 0 10px 30px rgba(79, 70, 229, 0.12); transition: transform 0.25s ease, box-shadow 0.25s ease; }
     .card:hover { transform: translateY(-6px) rotate(-0.4deg); box-shadow: 0 18px 40px rgba(79, 70, 229, 0.22); }
     .card .emoji { font-size: 2.6rem; display: block; margin-bottom: 0.5rem; }
@@ -245,11 +246,12 @@
       <p class="kicker">13 · Next steps · 2 of 2</p>
       <h2>More things I would change</h2>
       <p class="lead">Smaller changes that pay off quickly.</p>
-      <div class="cards">
+      <div class="cards three">
         <div class="card frag"><span class="emoji">💾</span><h3>Job checkpoints</h3><p>Save progress as a job runs, so a failed job resumes instead of restarting from scratch.</p></div>
         <div class="card frag"><span class="emoji">🎛️</span><h3>Granular sync</h3><p>Turn creates, updates and deletes on or off, or pick a subset.</p></div>
         <div class="card frag"><span class="emoji">⚡</span><h3>Sync on demand</h3><p>Sync a printer when a print can't find it.</p></div>
         <div class="card frag"><span class="emoji">🎭</span><h3>Playwright</h3><p>End-to-end tests for the UI.</p></div>
+        <div class="card frag"><span class="emoji">🗄️</span><h3>Job data retention</h3><p>Delete old job rows and results after a set period, so the jobs table stays small.</p></div>
         <div class="card frag"><span class="emoji">🤖</span><h3>MCP server</h3><p>Let AI assistants query and print through the same use cases.</p></div>
       </div>
     </section>
