@@ -4,6 +4,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ResponsesWithResolver } from "hono-openapi";
 import { describeRoute, resolver, validator } from "hono-openapi";
 import { z } from "zod";
+import { requireJson } from "../utils/api.ts";
 import { isNotFoundError } from "../utils/errors.ts";
 import type { Result } from "../utils/result.ts";
 import type { GetPrintsInput } from "./repository/interface.ts";
@@ -140,6 +141,7 @@ export const createPrintsApi = (useCases: PrintsUseCases): Hono => {
 
   app.post(
     "/",
+    requireJson,
     validator("json", CreatePrintSchema, validationHook),
     describeRoute({
       responses: { 201: jsonResponse(PrintResponseSchema, "Created print"), ...errorResponses },

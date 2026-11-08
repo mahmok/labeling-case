@@ -4,6 +4,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ResponsesWithResolver } from "hono-openapi";
 import { describeRoute, resolver, validator } from "hono-openapi";
 import { z } from "zod";
+import { requireJson } from "../utils/api.ts";
 import { isNotFoundError } from "../utils/errors.ts";
 import type { Result } from "../utils/result.ts";
 import type { GetPrintersInput } from "./repository/interface.ts";
@@ -144,6 +145,7 @@ export const createPrintersApi = (useCases: PrinterUseCases): Hono => {
   app.patch(
     "/:id",
     validator("param", z.object({ id: PrinterIdSchema }), validationHook),
+    requireJson,
     validator("json", UpdatePrinterSchema, validationHook),
     describeRoute({
       responses: {

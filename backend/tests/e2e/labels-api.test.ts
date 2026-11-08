@@ -223,4 +223,18 @@ describe("Labels API (end to end)", () => {
       expect((await request(`${labelsPath}/missing`, { method: "DELETE" })).status).toBe(204);
     });
   });
+
+  test("PATCH /api/v1/labels/lbl-001 without a JSON content type returns 415", async () => {
+    const missing = await fetch(`${origin}/api/v1/labels/lbl-001`, { body: '{"nickname":"x"}', method: "PATCH" });
+    const wrong = await fetch(`${origin}/api/v1/labels/lbl-001`, {
+      body: '{"nickname":"x"}',
+      headers: { "content-type": "text/plain" },
+      method: "PATCH",
+    });
+
+    for (const response of [missing, wrong]) {
+      expect(response.status).toBe(415);
+      expect(await response.json()).toEqual({ error: { message: "Content-Type must be application/json" } });
+    }
+  });
 });

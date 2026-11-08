@@ -4,6 +4,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ResponsesWithResolver } from "hono-openapi";
 import { describeRoute, resolver, validator } from "hono-openapi";
 import { type ZodString, z } from "zod";
+import { requireJson } from "../utils/api.ts";
 import { isNotFoundError } from "../utils/errors.ts";
 import type { Result } from "../utils/result.ts";
 import type { GetLabelsInput } from "./repository/interface.ts";
@@ -128,6 +129,7 @@ export const createLabelsApi = (useCases: LabelUseCases): Hono => {
   app.patch(
     "/:id",
     validator("param", z.object({ id: LabelIdSchema }), validationHook),
+    requireJson,
     validator("json", UpdateLabelSchema, validationHook),
     describeRoute({
       responses: { 200: jsonResponse(LabelResponseSchema, "Updated label"), ...errorResponses },

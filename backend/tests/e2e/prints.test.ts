@@ -86,4 +86,28 @@ describe("Prints API (end to end)", () => {
     expect(body.data.label.id).toBe("lbl-001");
     expect(body.data.printer.id).toBeNull();
   });
+
+  test("rejects a printer that is neither cached locally nor known to the vendor", async () => {
+    const response = await post("/api/v1/prints", { labelId: "lbl-001", printerName: "Not A Real Printer" });
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: { message: "Printer Not A Real Printer was not found" } });
+  });
+
+  test("POST /api/v1/prints without a JSON content type returns 415", async () => {
+    const missing = await fetch(`${origin}/api/v1/prints`, {
+      body: '{"labelId":"lbl-001","printerName":"Office Printer"}',
+      method: "POST",
+    });
+    const wrong = await fetch(`${origin}/api/v1/prints`, {
+      body: '{"labelId":"lbl-001","printerName":"Office Printer"}',
+      headers: { "content-type": "text/plain" },
+      method: "POST",
+    });
+
+    for (const response of [missing, wrong]) {
+      expect(response.status).toBe(415);
+      expect(await response.json()).toEqual({ error: { message: "Content-Type must be application/json" } });
+    }
+  });
 });

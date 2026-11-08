@@ -18,8 +18,6 @@ export type Dependencies<T> = {
   getLabelByIdFromVendor: GetLabelById;
 };
 
-type PrinterLookupPolicy = "required" | "optional";
-
 export type PrintInput = {
   labelId: string;
   printerName: string;
@@ -38,18 +36,13 @@ const lookupPrinterAndLabel = async (
   input: PrintInput,
   getPrinterByName: GetPrinterByName,
   getLabelById: GetLabelById,
-  printerLookupPolicy: PrinterLookupPolicy,
 ): Promise<Result<{ printer: Printer; label: Label }, Error>> => {
   const [labelResult, printerResult] = await Promise.all([
     getLabelById(input.labelId),
     getPrinterByName(input.printerName),
   ]);
   if (!labelResult.isOk) return labelResult;
-
-  if (!printerResult.isOk) {
-    if (!(isNotFoundError(printerResult.error) && printerLookupPolicy === "optional")) return printerResult;
-    return ok({ label: labelResult.value, printer: { id: null, name: input.printerName } });
-  }
+  if (!printerResult.isOk) return printerResult;
 
   return ok({ label: labelResult.value, printer: printerResult.value });
 };
@@ -62,12 +55,7 @@ const sendToVendor = async (client: PrintClient, input: PrintInput): Promise<Res
 const printWithLocalLookup =
   <T>({ client, repository, uow, getPrinterByNameLocally, getLabelByIdLocally }: Dependencies<T>) =>
   async (input: PrintInput): Promise<Result<Print, Error>> => {
-    const printerAndLabel = await lookupPrinterAndLabel(
-      input,
-      getPrinterByNameLocally,
-      getLabelByIdLocally,
-      "required",
-    );
+    const printerAndLabel = await lookupPrinterAndLabel(input, getPrinterByNameLocally, getLabelByIdLocally);
     if (!printerAndLabel.isOk) return printerAndLabel;
 
     const sent = await sendToVendor(client, input);
@@ -96,12 +84,7 @@ const printWithLocalLookup =
 const printWithVendorLookup =
   <T>({ client, repository, uow, getPrinterByNameFromVendor, getLabelByIdFromVendor }: Dependencies<T>) =>
   async (input: PrintInput): Promise<Result<Print, Error>> => {
-    const printerAndLabel = await lookupPrinterAndLabel(
-      input,
-      getPrinterByNameFromVendor,
-      getLabelByIdFromVendor,
-      "optional",
-    );
+    const printerAndLabel = await lookupPrinterAndLabel(input, getPrinterByNameFromVendor, getLabelByIdFromVendor);
     if (!printerAndLabel.isOk) return printerAndLabel;
 
     const sent = await sendToVendor(client, input);

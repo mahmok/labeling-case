@@ -4,6 +4,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import type { ResponsesWithResolver } from "hono-openapi";
 import { describeRoute, resolver, validator } from "hono-openapi";
 import { z } from "zod";
+import { requireJson } from "../utils/api.ts";
 import type { Result } from "../utils/result.ts";
 import type { Job } from "./domain.ts";
 import type { JobSortKey } from "./repository/interface.ts";
@@ -125,6 +126,7 @@ export const createJobsApi = (useCases: JobsUseCases): Hono => {
 
   app.post(
     "/",
+    requireJson,
     validator("json", CreateJobSchema, validationHook),
     describeRoute({
       responses: { 202: jsonResponse(JobResponseSchema, "Job queued"), ...errorResponses },

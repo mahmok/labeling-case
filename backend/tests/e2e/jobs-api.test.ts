@@ -5,7 +5,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createApi } from "../../src/api.ts";
 import { createApplication } from "../../src/application.ts";
 import { config } from "../../src/config.ts";
-import type { Job } from "../../src/jobs/domain.ts";
+import type { Job } from "../../src/jobs";
 
 const jobsPath = "/api/v1/jobs";
 const jsonHeaders = { "content-type": "application/json" };
@@ -101,5 +101,19 @@ describe("Jobs API (end to end)", () => {
     });
     expect(invalidJob.status).toBe(400);
     expect((await request(`${jobsPath}?status=unknown`)).status).toBe(400);
+  });
+
+  test("POST /api/v1/jobs without a JSON content type returns 415", async () => {
+    const missing = await fetch(`${origin}/api/v1/jobs`, { body: '{"type":"sync-labels"}', method: "POST" });
+    const wrong = await fetch(`${origin}/api/v1/jobs`, {
+      body: '{"type":"sync-labels"}',
+      headers: { "content-type": "text/plain" },
+      method: "POST",
+    });
+
+    for (const response of [missing, wrong]) {
+      expect(response.status).toBe(415);
+      expect(await response.json()).toEqual({ error: { message: "Content-Type must be application/json" } });
+    }
   });
 });
