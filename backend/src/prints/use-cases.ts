@@ -54,8 +54,13 @@ const lookupPrinterAndLabel = async (
   return ok({ label: labelResult.value, printer: printerResult.value });
 };
 
+const sendToVendor = async (client: PrintClient, input: PrintInput): Promise<Result<void, Error>> => {
+  const result = await client.print({ labelId: input.labelId, printerName: input.printerName });
+  return result.isOk ? ok() : result;
+};
+
 const printWithLocalLookup =
-  <T>({ repository, uow, getPrinterByNameLocally, getLabelByIdLocally }: Dependencies<T>) =>
+  <T>({ client, repository, uow, getPrinterByNameLocally, getLabelByIdLocally }: Dependencies<T>) =>
   async (input: PrintInput): Promise<Result<Print, Error>> => {
     const printerAndLabel = await lookupPrinterAndLabel(
       input,
@@ -64,6 +69,9 @@ const printWithLocalLookup =
       "required",
     );
     if (!printerAndLabel.isOk) return printerAndLabel;
+
+    const sent = await sendToVendor(client, input);
+    if (!sent.isOk) return sent;
 
     const { printer } = printerAndLabel.value;
     const result = await uow.execute((tx) =>
@@ -86,7 +94,7 @@ const printWithLocalLookup =
   };
 
 const printWithVendorLookup =
-  <T>({ repository, uow, getPrinterByNameFromVendor, getLabelByIdFromVendor }: Dependencies<T>) =>
+  <T>({ client, repository, uow, getPrinterByNameFromVendor, getLabelByIdFromVendor }: Dependencies<T>) =>
   async (input: PrintInput): Promise<Result<Print, Error>> => {
     const printerAndLabel = await lookupPrinterAndLabel(
       input,
@@ -95,6 +103,9 @@ const printWithVendorLookup =
       "optional",
     );
     if (!printerAndLabel.isOk) return printerAndLabel;
+
+    const sent = await sendToVendor(client, input);
+    if (!sent.isOk) return sent;
 
     const result = await uow.execute((tx) =>
       repository.create(

@@ -7,7 +7,7 @@ import { SQLiteLabelsRepository } from "../labels/repository/sqlite.ts";
 import { SQLitePrintersRepository } from "../printers/repository/sqlite.ts";
 import { isNotFoundError, notFoundError } from "../utils/errors.ts";
 import { err, ok } from "../utils/result.ts";
-import { MockClient } from "./client";
+import { MockClient, type PrintRequest } from "./client";
 import type { Label, Print, Printer } from "./domain.ts";
 import type { CreatePrintInput } from "./repository/interface.ts";
 import { SQLitePrintsRepository } from "./repository/sqlite.ts";
@@ -176,6 +176,56 @@ describe("Print use cases", () => {
       isOk: true,
       value: { label: { id: label.id }, printer: { id: null, name: printerName } },
     });
+  });
+
+  test("print use cases send the request to the vendor client", async () => {
+    const label = await createLabel();
+    const printer = await createPrinter();
+    const requests: unknown[] = [];
+    useCases = createPrintsUseCases({
+      client: {
+        print: async (request: PrintRequest) => {
+          requests.push(request);
+          return ok({});
+        },
+      },
+      getLabelByIdFromVendor: getLocalLabel,
+      getLabelByIdLocally: getLocalLabel,
+      getPrinterByNameFromVendor: getLocalPrinter,
+      getPrinterByNameLocally: getLocalPrinter,
+      repository: SQLitePrintsRepository,
+      uow: unitOfWork,
+    });
+    const input = { labelId: label.id, printerName: printer.name, triggeredBy: "api" };
+
+    await useCases.printWithLocalLookup(input);
+    await useCases.printWithVendorLookup(input);
+
+    expect(requests).toEqual([
+      { labelId: label.id, printerName: printer.name },
+      { labelId: label.id, printerName: printer.name },
+    ]);
+  });
+
+  test("a vendor print failure is returned and no print is recorded", async () => {
+    const label = await createLabel();
+    const printer = await createPrinter();
+    useCases = createPrintsUseCases({
+      client: { print: async () => err(new Error("vendor unavailable")) },
+      getLabelByIdFromVendor: getLocalLabel,
+      getLabelByIdLocally: getLocalLabel,
+      getPrinterByNameFromVendor: getLocalPrinter,
+      getPrinterByNameLocally: getLocalPrinter,
+      repository: SQLitePrintsRepository,
+      uow: unitOfWork,
+    });
+    const input = { labelId: label.id, printerName: printer.name, triggeredBy: "api" };
+
+    for (const result of [await useCases.printWithLocalLookup(input), await useCases.printWithVendorLookup(input)]) {
+      expect(result.isOk).toBe(false);
+      if (!result.isOk) expect(result.error.message).toBe("vendor unavailable");
+    }
+    expect(await useCases.getPrints({ labelId: [label.id] })).toEqual({ isOk: true, value: [] });
   });
 
   test("getPrints filters and sorts records, and getPrint gets one by ID", async () => {
