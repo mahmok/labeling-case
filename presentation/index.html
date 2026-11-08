@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Labeling Platform · Case study</title>
+  <style>
+    :root {
+      --ink: #1f2340;
+      --muted: #5b6185;
+      --card: rgba(255, 255, 255, 0.86);
+      --accent: #6366f1;
+      --accent2: #ec4899;
+      --accent3: #0ea5e9;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: ui-rounded, "Avenir Next", "Segoe UI", system-ui, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(135deg, #eef2ff 0%, #fdf2f8 50%, #ecfeff 100%);
+      overflow: hidden;
+    }
+
+    /* Background blobs */
+    .blob { position: fixed; border-radius: 50%; filter: blur(60px); opacity: 0.45; z-index: 0; animation: drift 18s ease-in-out infinite alternate; pointer-events: none; }
+    .blob.b1 { width: 40vmax; height: 40vmax; background: #a5b4fc; left: -10vmax; top: -12vmax; }
+    .blob.b2 { width: 35vmax; height: 35vmax; background: #f9a8d4; right: -8vmax; bottom: -10vmax; animation-duration: 22s; }
+    .blob.b3 { width: 25vmax; height: 25vmax; background: #67e8f9; left: 45%; top: 55%; animation-duration: 26s; }
+    @keyframes drift { to { transform: translate(4vmax, 3vmax) scale(1.1); } }
+
+    /* Progress */
+    .progress { position: fixed; top: 0; left: 0; right: 0; height: 6px; background: rgba(99, 102, 241, 0.15); z-index: 10; }
+    .progress span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3)); transition: width 0.5s ease; }
+
+    /* Slides */
+    .deck { position: relative; z-index: 1; height: 100vh; }
+    .slide { position: absolute; inset: 0; display: none; flex-direction: column; padding: 4.5rem 4rem 6rem; animation: enter 0.6s both; }
+    .slide.active { display: flex; }
+    @keyframes enter { from { opacity: 0; transform: translateX(40px) scale(0.98); } to { opacity: 1; transform: none; } }
+    .slide h1, .slide h2 { margin: 0; letter-spacing: -0.02em; }
+    .slide h2 { font-size: clamp(1.9rem, 3.4vw, 2.9rem); }
+    .kicker { color: var(--accent); font-weight: 800; text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.8rem; margin: 0 0 0.4rem; }
+    .lead { font-size: clamp(1rem, 1.5vw, 1.3rem); color: var(--muted); margin: 0.5rem 0 1.4rem; max-width: 62ch; line-height: 1.45; }
+
+    /* Cards */
+    .cards { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); align-content: start; }
+    .slide:not(.diagram-slide):not(.title):not(.thanks) .cards { margin-top: 0.6rem; }
+    .card { background: var(--card); border: 1px solid #fff; border-radius: 22px; padding: 1.4rem 1.5rem; box-shadow: 0 10px 30px rgba(79, 70, 229, 0.12); transition: transform 0.25s ease, box-shadow 0.25s ease; }
+    .card:hover { transform: translateY(-6px) rotate(-0.4deg); box-shadow: 0 18px 40px rgba(79, 70, 229, 0.22); }
+    .card .emoji { font-size: 2.6rem; display: block; margin-bottom: 0.5rem; }
+    .card h3 { margin: 0 0 0.4rem; font-size: 1.25rem; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .card ul { margin: 0.5rem 0 0; padding-left: 1.1rem; color: var(--muted); line-height: 1.55; }
+    .card.big p { color: var(--ink); font-size: 1.15rem; font-weight: 600; }
+    .num { display: inline-grid; place-items: center; width: 2.2rem; height: 2.2rem; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 800; margin-bottom: 0.7rem; }
+
+    /* Fragments: revealed one click at a time */
+    .frag { opacity: 0; transform: translateY(18px); transition: opacity 0.5s ease, transform 0.5s ease; }
+    .frag.shown { opacity: 1; transform: none; }
+
+    /* Diagrams */
+    .diagram-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    .slide.diagram-slide { padding: 3.6rem 2.6rem 5.4rem; }
+    .slide.diagram-slide h2 { font-size: clamp(1.6rem, 2.6vw, 2.2rem); }
+    .slide.diagram-slide .lead { margin: 0.3rem 0 0.8rem; max-width: none; font-size: clamp(0.95rem, 1.2vw, 1.1rem); }
+    .slide.diagram-slide .kicker { margin-bottom: 0.2rem; }
+    .diagram { flex: 1; min-height: 0; background: var(--card); border: 1px solid #fff; border-radius: 24px; padding: 1rem; display: flex; align-items: center; justify-content: center; overflow: auto; box-shadow: 0 10px 30px rgba(79, 70, 229, 0.12); }
+    .diagram { padding: 0.6rem; }
+    .diagram svg { max-width: 100%; max-height: 100%; width: auto; height: auto; }
+    .caption { margin: 0.9rem 0 0; color: var(--muted); font-size: 1rem; }
+    .err { color: #b91c1c; font-weight: 600; }
+
+    /* Title slide */
+    .title { justify-content: center; }
+    .title h1 { font-size: clamp(3.2rem, 9vw, 7.5rem); line-height: 1; background: linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3), var(--accent)); background-size: 300% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 6s linear infinite; }
+    @keyframes shine { to { background-position: 300% center; } }
+    .title .sub { font-size: clamp(1.1rem, 2vw, 1.7rem); color: var(--muted); max-width: 30ch; margin: 1.2rem 0; line-height: 1.35; }
+    .chips span { display: inline-block; padding: 0.4rem 0.9rem; border-radius: 999px; background: #fff; margin: 0.2rem 0.3rem 0.2rem 0; font-weight: 700; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12); animation: bob 3s ease-in-out infinite; }
+    .chips span:nth-child(2n) { animation-delay: 0.4s; }
+    .chips span:nth-child(3n) { animation-delay: 0.8s; }
+    @keyframes bob { 50% { transform: translateY(-6px); } }
+    .hint { margin-top: 2rem; color: var(--muted); font-weight: 600; }
+
+    /* Closing slide */
+    .btn { border: 0; border-radius: 999px; padding: 0.8rem 1.4rem; font-weight: 800; font-size: 1rem; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2)); cursor: pointer; box-shadow: 0 10px 24px rgba(236, 72, 153, 0.3); transition: transform 0.2s ease; }
+    .btn:hover { transform: scale(1.05); }
+    .thanks { justify-content: center; }
+
+    /* Navigation */
+    .nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 2rem; z-index: 5; }
+    .nav button.arrow { border: 0; background: #fff; color: var(--ink); width: 46px; height: 46px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; box-shadow: 0 6px 16px rgba(79, 70, 229, 0.18); transition: transform 0.2s ease; }
+    .nav button.arrow:hover { transform: scale(1.12); }
+    #dots { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem; }
+    #dots button { width: 12px; height: 12px; border-radius: 50%; border: 0; padding: 0; background: rgba(99, 102, 241, 0.25); cursor: pointer; transition: transform 0.2s ease, background 0.2s ease; }
+    #dots button:hover { background: rgba(99, 102, 241, 0.6); }
+    #dots button.on { background: var(--accent); transform: scale(1.4); }
+    #counter { font-weight: 800; color: var(--muted); min-width: 4.5rem; text-align: center; font-variant-numeric: tabular-nums; }
+
+    /* Confetti */
+    .confetti { position: fixed; top: -10vh; font-size: 1.8rem; pointer-events: none; z-index: 20; animation-name: fall; animation-timing-function: linear; animation-fill-mode: forwards; }
+    @keyframes fall { to { transform: translateY(120vh) rotate(720deg); } }
+
+    @media (max-width: 800px) {
+      .slide { padding: 4rem 1.2rem 6rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+  <div class="progress"><span></span></div>
+
+  <main class="deck">
+
+    <!-- 0. Title -->
+    <section class="slide title" data-title="Start">
+      <p class="kicker">Case study</p>
+      <h1>Labeling Platform</h1>
+      <p class="sub">A cloud layer on top of vendor printers and labels: attach metadata, query everything, print to any printer.</p>
+      <div class="chips"><span>Bun</span><span>Hono</span><span>React</span><span>PostgreSQL</span><span>AWS</span></div>
+      <p class="hint">Press → or Space to start · F for fullscreen</p>
+    </section>
+
+    <!-- 1. Problem -->
+    <section class="slide" data-title="The problem">
+      <p class="kicker">01 · The problem</p>
+      <h2>Provide a cloud-based solution for users</h2>
+      <p class="lead">The vendor has the printers and labels. Users need more than that from them.</p>
+      <div class="cards">
+        <div class="card frag"><span class="emoji">🏷️</span><h3>Attach metadata</h3><p>Add metadata on top of vendor labels and printers.</p></div>
+        <div class="card frag"><span class="emoji">🔎</span><h3>Query it all</h3><p>Search and filter metadata and vendor data together.</p></div>
+        <div class="card frag"><span class="emoji">🖨️</span><h3>Print to a printer</h3><p>Submit print jobs to a specific printer.</p></div>
+      </div>
+    </section>
+
+    <!-- 2. Assumptions -->
+    <section class="slide" data-title="Assumptions">
+      <p class="kicker">02 · Assumptions</p>
+      <h2>What I took as given</h2>
+      <p class="lead">Each of these shaped a design decision.</p>
+      <div class="cards">
+        <div class="card big frag"><span class="num">1</span><p>The printer name is the primary key at the vendor.</p></div>
+        <div class="card big frag"><span class="num">2</span><p>“Query” means granular filtering and search, not just listing.</p></div>
+        <div class="card big frag"><span class="num">3</span><p>A label's primary key is its ID, not ID + version.</p></div>
+        <div class="card big frag"><span class="num">4</span><p>The vendor has API rate limits.</p></div>
+      </div>
+    </section>
+
+    <!-- 3. High-level solution -->
+    <section class="slide diagram-slide" data-title="High-level solution">
+      <p class="kicker">03 · Solution</p>
+      <h2>High-level solution</h2>
+      <p class="lead">The design keeps a synced copy of vendor data next to its metadata. A sync service keeps the two up to date.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-high"></div></div>
+    </section>
+
+    <!-- 4. Design principles -->
+    <section class="slide diagram-slide" data-title="Design principles">
+      <p class="kicker">04 · Design</p>
+      <h2>Design principles</h2>
+      <p class="lead">The ideas behind the code.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-design"></div></div>
+    </section>
+
+    <!-- 5. Tech stack -->
+    <section class="slide diagram-slide" data-title="Tech stack">
+      <p class="kicker">05 · Stack</p>
+      <h2>Tech stack</h2>
+      <p class="lead">The technologies, and what each one is for.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-stack"></div></div>
+    </section>
+
+    <!-- 6. Backend conceptual -->
+    <section class="slide diagram-slide" data-title="Backend architecture (conceptual)">
+      <p class="kicker">06 · Backend</p>
+      <h2>Backend architecture: conceptual</h2>
+      <p class="lead">Entry points get wired use cases from one composition root. Each context owns its logic and its interfaces.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-concept"></div></div>
+    </section>
+
+    <!-- 7. Backend concrete -->
+    <section class="slide diagram-slide" data-title="Backend architecture (concrete)">
+      <p class="kicker">07 · Backend</p>
+      <h2>Backend architecture: concrete</h2>
+      <p class="lead">Real contexts, their interfaces, and the Postgres and SQLite adapters.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-concrete"></div></div>
+    </section>
+
+    <!-- 8. Deployment option 1 -->
+    <section class="slide diagram-slide" data-title="Deployment: option 1">
+      <p class="kicker">08 · Deployment · Option 1</p>
+      <h2>ECS + RDS + S3 / CloudFront</h2>
+      <p class="lead">Two ECS services in a VPC. A public load balancer routes to the API. The UI is static on S3 behind CloudFront.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-opt1"></div></div>
+    </section>
+
+    <!-- 9. Deployment option 2 -->
+    <section class="slide diagram-slide" data-title="Deployment: option 2">
+      <p class="kicker">09 · Deployment · Option 2</p>
+      <h2>Serverless: Lambda + API Gateway + EventBridge</h2>
+      <p class="lead">No always-on containers. EventBridge schedules run the jobs, and RDS Proxy keeps database connections in check.</p>
+      <div class="diagram-wrap"><div class="diagram" data-diagram="src-opt2"></div></div>
+    </section>
+
+    <!-- 10. Things I thought of -->
+    <section class="slide" data-title="Ideas I explored">
+      <p class="kicker">10 · Ideas</p>
+      <h2>Things I thought of implementing</h2>
+      <p class="lead">Two ideas I considered but haven't built yet.</p>
+      <div class="cards">
+        <div class="card frag"><span class="emoji">🔗</span><h3>Store references, federate the rest</h3><p>Keep IDs and metadata. Fetch extra vendor details through their APIs when they're needed.</p></div>
+        <div class="card frag"><span class="emoji">🆔</span><h3>UUIDv5 IDs from vendor data</h3><p>Derive IDs from a namespace and vendor data, such as the printer name. Re-running a sync then gives the same IDs.</p></div>
+      </div>
+    </section>
+
+    <!-- 11. Things to add or change (1/2) -->
+    <section class="slide" data-title="Things I would change (1 of 2)">
+      <p class="kicker">11 · Next steps · 1 of 2</p>
+      <h2>Things I would add or change</h2>
+      <p class="lead">Security, data integrity, events and structure.</p>
+      <div class="cards">
+        <div class="card frag"><span class="emoji">🔐</span><h3>Auth</h3><ul><li>Entra / OpenID sign-in</li><li>Machine-to-machine APIs</li><li>A separate database user per scope (today: one)</li></ul></div>
+        <div class="card frag"><span class="emoji">🧾</span><h3>Drift detection</h3><ul><li>Checksums per record</li><li>Merkle / hash trees for whole datasets</li></ul></div>
+        <div class="card frag"><span class="emoji">📣</span><h3>Event streaming</h3><ul><li>The worker polls today</li><li>Emit business events: printer synced, print submitted, job failed</li></ul></div>
+        <div class="card frag"><span class="emoji">📦</span><h3>Packages</h3><ul><li>One package per bounded context</li><li>One app directory per entry point</li></ul></div>
+      </div>
+    </section>
+
+    <!-- 12. Things to add or change (2/2) -->
+    <section class="slide" data-title="Things I would change (2 of 2)">
+      <p class="kicker">12 · Next steps · 2 of 2</p>
+      <h2>More things I would change</h2>
+      <p class="lead">Smaller changes that pay off quickly.</p>
+      <div class="cards">
+        <div class="card frag"><span class="emoji">🔤</span><h3>Constants</h3><p>Replace magic strings with named constants.</p></div>
+        <div class="card frag"><span class="emoji">🎛️</span><h3>Granular sync</h3><p>Turn creates, updates and deletes on or off, or pick a subset.</p></div>
+        <div class="card frag"><span class="emoji">⚡</span><h3>Sync on demand</h3><p>Sync a printer when a print can't find it.</p></div>
+        <div class="card frag"><span class="emoji">🎭</span><h3>Playwright</h3><p>End-to-end tests for the UI.</p></div>
+        <div class="card frag"><span class="emoji">🤖</span><h3>MCP server</h3><p>Let AI assistants query and print through the same use cases.</p></div>
+      </div>
+    </section>
+
+    <!-- 13. Thanks -->
+    <section class="slide thanks" data-title="Questions">
+      <p class="kicker">Thank you</p>
+      <h1 style="font-size: clamp(3rem, 8vw, 6rem); margin-bottom: 1.2rem;">Questions? 🙋</h1>
+      <p class="lead">Happy to go deeper on any slide.</p>
+      <p><button class="btn" id="confetti" type="button">🎉 Celebrate</button></p>
+    </section>
+
+  </main>
+
+  <nav class="nav">
+    <button class="arrow" id="prev" type="button" aria-label="Previous">←</button>
+    <div id="dots" aria-label="Slides"></div>
+    <span id="counter"></span>
+    <button class="arrow" id="next" type="button" aria-label="Next">→</button>
+  </nav>
+
+  <!-- Diagram sources, copied from doc/. Kept as text so Mermaid reads them untouched. -->
+  <script type="text/plain" id="src-high">
+flowchart LR
+
+    user["user"]
+
+    subgraph app["Application"]
+        rest["HTTP service"]
+        syncer["Vendor data synchronization service"]
+    end
+
+    subgraph persistence["Persistence"]
+        metadata["Metadata Store"]
+        vendor["Vendor data store"]
+    end
+
+    subgraph vendorapp["Vendor"]
+        api["REST API"]
+    end
+
+    user -->
+    app --> persistence
+    syncer --> api
+</script>
+  <script type="text/plain" id="src-design">
+%%{init: {"theme": "base", "themeVariables": {"git0": "#1E293B", "gitBranchLabel0": "#FFFFFF", "cScale0": "#1E293B", "cScaleLabel0": "#FFFFFF", "cScaleInv0": "#1E293B", "lineColor": "#94A3B8", "cScale1": "#6366F1", "cScaleInv1": "#6366F1", "cScaleLabel1": "#FFFFFF", "cScale2": "#0EA5E9", "cScaleInv2": "#0EA5E9", "cScaleLabel2": "#111827", "cScale3": "#10B981", "cScaleInv3": "#10B981", "cScaleLabel3": "#111827", "cScale4": "#F59E0B", "cScaleInv4": "#F59E0B", "cScaleLabel4": "#111827", "cScale5": "#EF4444", "cScaleInv5": "#EF4444", "cScaleLabel5": "#FFFFFF", "cScale6": "#8B5CF6", "cScaleInv6": "#8B5CF6", "cScaleLabel6": "#FFFFFF", "cScale7": "#14B8A6", "cScaleInv7": "#14B8A6", "cScaleLabel7": "#111827", "cScale8": "#EC4899", "cScaleInv8": "#EC4899", "cScaleLabel8": "#FFFFFF", "cScale9": "#F97316", "cScaleInv9": "#F97316", "cScaleLabel9": "#111827"}} }%%
+mindmap
+  root((Design Principles))
+    Composability
+        Dependency inversion
+            Consumer vs producer interfaces
+            Low coupling between modules
+        Multiple entry points
+        Configurability
+    DX
+       Lower context overload
+       Debuggability and traceability
+       Quick & easy work setup
+    Data
+        Unit of work
+        Multi-dialect support
+        Idempotency in syncs
+        Eventual consistency and backfilling
+    Resilience
+        Fallback strategies
+        Retries and backoffs
+        Auto-healing
+        Health checks
+    Error handling
+        Error as values
+    Type safety
+    Scalability
+    Testability
+        Unit tests
+        Integration tests
+        E2E tests
+    Observability
+        Structured logging
+</script>
+  <script type="text/plain" id="src-stack">
+flowchart TB
+    subgraph FE["Frontend"]
+        direction TB
+        f1["React + TypeScript<br/>SPA UI"]
+        f2["Vite<br/>build / dev server"]
+        f3["TanStack Query<br/>server-state caching"]
+        f4["Tailwind + DaisyUI<br/>styling"]
+    end
+    subgraph BE["Backend"]
+        direction TB
+        b1["Bun + TypeScript<br/>runtime"]
+        b2["Hono + Zod<br/>REST API, validation, OpenAPI"]
+        b3["Drizzle ORM<br/>typed DB access + migrations"]
+        b4["Bun.cron<br/>scheduled background jobs"]
+    end
+    subgraph DATA["Data"]
+        d1[("PostgreSQL<br/>primary store")]
+        d2[("SQLite<br/>alt. dialect")]
+    end
+    subgraph OPS["Quality and Ops"]
+        direction TB
+        o1["bun test + Testcontainers<br/>unit / integration / e2e"]
+        o2["Docker Compose<br/>local full stack"]
+        o3["Biome<br/>lint + format"]
+        o4["GitHub Actions<br/>CI on PRs: lint, build, unit, integration, e2e"]
+    end
+    FE --> BE --> DATA
+    OPS -.-> FE
+    OPS -.-> BE
+</script>
+  <script type="text/plain" id="src-concept">
+flowchart BT
+    subgraph entry["Entry Points"]
+        API
+        Worker
+        CLI
+    end
+
+    subgraph app["Application"]
+        CR["Composition Root"]
+        CONFIG["Configuration"]
+    end
+
+    subgraph bounded["Bounded Context"]
+        subgraph Private
+            DOMAIN["Domain"]
+            SCHEMA["Schemas"]
+            CLIENT["Clients"]
+            REPO["Repositories"]
+        end
+
+
+        USECASE["Use cases"]
+        HONO["Hono app<br/>routes"]
+
+    end
+
+    subgraph infra["Infra"]
+        DB["Persistence"]
+        LOGGING["Logging"]
+    end
+
+    app -->|"provides assembled app"| CLI
+    app -->|"provides assembled app"| API
+    app -->|"provides assembled app"| Worker
+
+    USECASE -->|"registered in"| CR
+    HONO -->|"mounted on"| API
+    HONO --> USECASE
+
+    LOGGING -->|"used by"| bounded
+    LOGGING -->|"used by"| entry
+    DB -->|"implementation injected into"| CR
+    CONFIG -->|"settings read by"| CR
+</script>
+  <script type="text/plain" id="src-concrete">
+flowchart BT
+    subgraph entry["Entry Points"]
+        API["API<br/>Hono"]
+        Worker["Worker<br/>registers scheduled jobs<br/>sync-printers, sync-labels<br/>backfill-prints"]
+    end
+
+    subgraph app["Application"]
+        CR["Composition Root"]
+        LOOK["Print lookups adapter"]
+        CONFIG["Configuration<br/>env vars"]
+    end
+
+    subgraph bounded["Bounded Contexts"]
+        subgraph printers["Printers"]
+            PHONO["Hono app<br/>routes"]
+            PUC["Use cases<br/>sync, getPrinters, getPrinter<br/>getVendorPrinters<br/>applyPrinterChanges<br/>create, update, delete"]
+            PREPO(["Repository"])
+            PCLI(["Vendor client"])
+            PMOCK["Mock client"]
+        end
+        subgraph labels["Labels"]
+            LHONO["Hono app<br/>routes"]
+            LUC["Use cases<br/>sync, getLabels, getLabel<br/>getVendorLabels<br/>applyLabelChanges<br/>create, update, delete"]
+            LREPO(["Repository"])
+            LCLI(["Vendor client"])
+            LMOCK["Mock client"]
+        end
+        subgraph prints["Prints"]
+            PRHONO["Hono app<br/>routes"]
+            PRUC["Use cases<br/>printWithLocalLookup<br/>printWithVendorLookup<br/>backfillPrints<br/>getPrints, getPrint"]
+            PRREPO(["Repository"])
+            PRCLI(["Vendor client"])
+            PRMOCK["Mock client"]
+            PRLOOK(["Printer and label lookups"])
+        end
+        subgraph jobs["Jobs"]
+            JHONO["Hono app<br/>routes"]
+            JWORKER["Jobs worker (worker.ts)<br/>cron scheduler<br/>API-job polling<br/>retries + crash recovery"]
+            JUC["Use cases<br/>createJobs, getJobs<br/>claimNextJob<br/>updateJobs, deleteJobs"]
+            JREPO(["Repository"])
+        end
+    end
+
+    subgraph infra["Infra"]
+        UOW(["Unit of Work"])
+        PG["PostgreSQL<br/>repositories + Unit of Work"]
+        SQLITE["SQLite<br/>repositories + Unit of Work"]
+        LOGGING["Logging"]
+    end
+
+    app -->|"provides wired use cases"| API
+    app -->|"provides wired use cases"| Worker
+    JWORKER -->|"started by"| Worker
+    Worker -.->|"scheduled jobs run sync and backfill use cases"| bounded
+    JWORKER --> JUC
+
+    bounded -->|"registered in"| CR
+    LOOK -->|"implements"| PRLOOK
+    LOOK -.->|"calls"| PUC
+    LOOK -.->|"calls"| LUC
+
+    PHONO -->|"mounted on"| API
+    LHONO -->|"mounted on"| API
+    PRHONO -->|"mounted on"| API
+    JHONO -->|"mounted on"| API
+    PHONO --> PUC
+    LHONO --> LUC
+    PRHONO --> PRUC
+    JHONO --> JUC
+
+    PUC --> PREPO
+    PUC --> PCLI
+    LUC --> LREPO
+    LUC --> LCLI
+    PRUC --> PRREPO
+    PRUC --> PRCLI
+    PRUC --> PRLOOK
+    JUC --> JREPO
+
+    PMOCK -.->|"implements"| PCLI
+    LMOCK -.->|"implements"| LCLI
+    PRMOCK -.->|"implements"| PRCLI
+    PG -.->|"implements repositories"| bounded
+    SQLITE -.->|"implements repositories"| bounded
+    PG -.->|"implements"| UOW
+    SQLITE -.->|"implements"| UOW
+
+    UOW -->|"injected into"| CR
+    CONFIG -->|"selects dialect, schedules, ports"| CR
+    LOGGING -->|"used by"| entry
+</script>
+  <script type="text/plain" id="src-opt1">
+architecture-beta
+    service user(internet)[Browser]
+    service cf(cloud)[CloudFront CDN]
+    service s3(disk)[S3 Frontend Bucket]
+    service secrets(disk)[Secrets Manager]
+
+    group vpc(cloud)[VPC]
+
+    group public(cloud)[Public Subnets] in vpc
+    service alb(internet)[Application Load Balancer] in public
+
+    group private(cloud)[Private Subnets] in vpc
+    group ecs(cloud)[ECS Cluster Fargate] in private
+    service migrate(server)[Migrate Task One Off] in ecs
+    service api(server)[API Service] in ecs
+    service worker(server)[Worker Service] in ecs
+    service rds(database)[RDS PostgreSQL] in private
+    junction jmigrate in private
+    junction jworker in private
+
+    user:T --> B:cf
+    cf:T --> B:s3
+    user:R --> L:alb
+    alb:R --> L:api
+    api:R --> L:rds
+    migrate:R -- L:jmigrate
+    jmigrate:B --> T:rds
+    worker:R -- L:jworker
+    jworker:T --> B:rds
+    migrate{group}:T --> B:secrets
+</script>
+  <script type="text/plain" id="src-opt2">
+architecture-beta
+    service user(internet)[Browser]
+    service cf(cloud)[CloudFront CDN]
+    service s3(disk)[S3 Frontend Bucket]
+    service apigw(internet)[API Gateway HTTP API]
+    service secrets(disk)[Secrets Manager]
+    service scheduler(cloud)[EventBridge Scheduler]
+
+    group vpc(cloud)[VPC]
+    group private(cloud)[Private Subnets] in vpc
+    service apifn(server)[API Lambda] in private
+    service jobsfn(server)[Jobs Lambda] in private
+    service proxy(database)[RDS Proxy] in private
+    service rds(database)[RDS PostgreSQL] in private
+    junction jjobs in private
+
+    user:T --> B:cf
+    cf:T --> B:s3
+    user:R --> L:apigw
+    apigw:R --> L:apifn
+    apifn:R --> L:proxy
+    proxy:R --> L:rds
+    jobsfn:R -- L:jjobs
+    jjobs:T --> B:proxy
+    scheduler:T --> B:jobsfn
+    apifn:T --> B:secrets
+</script>
+
+  <script>
+    (() => {
+      const slides = [...document.querySelectorAll(".slide")];
+      const total = slides.length;
+      const dotsEl = document.getElementById("dots");
+      const bar = document.querySelector(".progress span");
+      const counter = document.getElementById("counter");
+      let current = 0;
+      let renderCount = 0;
+
+      mermaid.initialize({
+        startOnLoad: false,
+        securityLevel: "loose",
+        theme: "base",
+        themeVariables: {
+          primaryColor: "#e0e7ff",
+          primaryBorderColor: "#6366f1",
+          primaryTextColor: "#1f2340",
+          lineColor: "#6366f1",
+          secondaryColor: "#fce7f3",
+          tertiaryColor: "#ecfeff",
+        },
+      });
+
+      slides.forEach((slide, i) => {
+        const dot = document.createElement("button");
+        dot.type = "button";
+        dot.title = slide.dataset.title;
+        dot.setAttribute("aria-label", `Go to ${slide.dataset.title}`);
+        dot.addEventListener("click", () => go(i));
+        dotsEl.append(dot);
+      });
+
+      // Diagrams are drawn the first time their slide is shown, so hidden slides never measure as 0px.
+      const renderDiagram = async (el) => {
+        if (el.dataset.rendered) return;
+        el.dataset.rendered = "true";
+        const source = document.getElementById(el.dataset.diagram).textContent;
+        try {
+          const { svg } = await mermaid.render(`diagram-${++renderCount}`, source);
+          el.innerHTML = svg;
+        } catch (error) {
+          el.innerHTML = `<p class="err">This diagram could not be rendered: ${error.message}</p>`;
+        }
+      };
+
+      const go = (index, showAll = false) => {
+        current = Math.min(total - 1, Math.max(0, index));
+        slides.forEach((slide, i) => slide.classList.toggle("active", i === current));
+        const active = slides[current];
+        active.querySelectorAll(".frag").forEach((frag) => frag.classList.toggle("shown", showAll));
+        [...dotsEl.children].forEach((dot, i) => dot.classList.toggle("on", i === current));
+        bar.style.width = `${(current / (total - 1)) * 100}%`;
+        counter.textContent = `${current + 1} / ${total}`;
+        history.replaceState(null, "", `#${current + 1}`);
+        active.querySelectorAll("[data-diagram]").forEach(renderDiagram);
+      };
+
+      // Each press reveals the next card; once a slide is fully revealed, the next press moves on.
+      const next = () => {
+        const hidden = [...slides[current].querySelectorAll(".frag:not(.shown)")];
+        if (hidden.length > 0) hidden[0].classList.add("shown");
+        else go(current + 1);
+      };
+      const prev = () => {
+        const shown = [...slides[current].querySelectorAll(".frag.shown")];
+        if (shown.length > 0) shown[shown.length - 1].classList.remove("shown");
+        else go(current - 1, true);
+      };
+
+      document.getElementById("next").addEventListener("click", next);
+      document.getElementById("prev").addEventListener("click", prev);
+
+      document.addEventListener("keydown", (event) => {
+        if (["ArrowRight", "ArrowDown", "PageDown", " "].includes(event.key)) {
+          event.preventDefault();
+          next();
+        } else if (["ArrowLeft", "ArrowUp", "PageUp"].includes(event.key)) {
+          event.preventDefault();
+          prev();
+        } else if (event.key === "Home") {
+          go(0);
+        } else if (event.key === "End") {
+          go(total - 1, true);
+        } else if (event.key === "f") {
+          if (document.fullscreenElement) document.exitFullscreen();
+          else document.documentElement.requestFullscreen();
+        }
+      });
+
+      let touchStartX = null;
+      document.addEventListener("touchstart", (event) => {
+        touchStartX = event.touches[0].clientX;
+      }, { passive: true });
+      document.addEventListener("touchend", (event) => {
+        if (touchStartX === null) return;
+        const dx = event.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(dx) > 50) (dx < 0 ? next : prev)();
+        touchStartX = null;
+      });
+
+      const EMOJI = ["🎉", "🏷️", "🖨️", "✨", "🚀", "🎈", "⭐"];
+      const celebrate = () => {
+        for (let i = 0; i < 60; i += 1) {
+          const piece = document.createElement("span");
+          piece.className = "confetti";
+          piece.textContent = EMOJI[i % EMOJI.length];
+          piece.style.left = `${Math.random() * 100}vw`;
+          piece.style.animationDuration = `${2.5 + Math.random() * 2}s`;
+          piece.style.animationDelay = `${Math.random() * 0.6}s`;
+          document.body.append(piece);
+          piece.addEventListener("animationend", () => piece.remove());
+        }
+      };
+      document.getElementById("confetti").addEventListener("click", celebrate);
+
+      const start = Number.parseInt(location.hash.slice(1), 10);
+      go(Number.isInteger(start) && start >= 1 ? start - 1 : 0, true);
+
+      // Handy for a presenter console or for testing: deck.go(3), deck.next(), deck.prev().
+      window.deck = { go, next, prev };
+    })();
+  </script>
+</body>
+</html>

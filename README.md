@@ -47,6 +47,8 @@ Integration and end-to-end tests use Testcontainers; see [`backend/tests/README.
 
 ## Documentation
 
+- [Presentation](https://mahmok.github.io/labeling-case/): case study slides covering the design, architecture and deployment options
+- [High-level solution](doc/high-level-solution.md): the main parts of the system and how they connect
 - [Tech stack](doc/tech-stack.md): high-level view of the technologies used and what each is for
 - [Backend architecture](doc/backend-architecture.md): conceptual and concrete views of the backend structure
 - [Design principles](doc/design-principles.md): the main design decisions behind the system
