@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { err, ok } from "../utils/result.ts";
-import { createUnitOfWork } from "./unit-of-work.ts";
+import { createUnitOfWork, type UnitOfWork } from "./unit-of-work.ts";
 
 type Transaction = { marker: string };
 
 const createTestUnitOfWork = (): {
   state: { committed: boolean; rolledBack: boolean };
-  unitOfWork: ReturnType<typeof createUnitOfWork<Transaction>>;
+  unitOfWork: UnitOfWork<Transaction>;
 } => {
   const state = { committed: false, rolledBack: false };
   const unitOfWork = createUnitOfWork<Transaction>(async (operation) => {

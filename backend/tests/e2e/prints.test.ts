@@ -3,14 +3,14 @@ import { resolve } from "node:path";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { createApi } from "../../src/api.ts";
-import { createApplication } from "../../src/application.ts";
+import { type Application, createApplication } from "../../src/application.ts";
 import { config } from "../../src/config.ts";
 
 let container: StartedPostgreSqlContainer | undefined;
-let server: ReturnType<typeof Bun.serve> | undefined;
+let server: Bun.Server<undefined> | undefined;
 let closeDatabase: () => Promise<void> = async () => {};
 let origin: string;
-let application: Awaited<ReturnType<typeof createApplication>>;
+let application: Application;
 
 const request = (path: string): Promise<Response> => fetch(`${origin}${path}`);
 const post = (path: string, body: unknown): Promise<Response> =>

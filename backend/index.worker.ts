@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { createApplication } from "./src/application.ts";
 import { config } from "./src/config.ts";
+import { createHealthHandler, livenessHandler } from "./src/health.ts";
 import { type ScheduledJob, startJobsWorker } from "./src/jobs";
 import { logger } from "./src/logger";
 import { err, ok } from "./src/utils/result.ts";
@@ -12,7 +13,8 @@ void (async () => {
   const api = new Hono();
   // TODO: Remove later
   api.use("*", cors());
-  api.get("/health", (c) => c.json({ status: "running" }));
+  api.get("/health/live", livenessHandler);
+  api.get("/health", createHealthHandler(application.db.ping));
 
   const schedules: ScheduledJob[] = [
     {

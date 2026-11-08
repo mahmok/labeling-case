@@ -16,6 +16,7 @@ export interface Config {
     port: number;
   };
   database: {
+    connectionTimeoutMs: number;
     name: string;
     host: string;
     port: number;
@@ -70,6 +71,7 @@ export const config: Config = {
     port: getOptionalEnvVar("PORT", 3000, Number),
   },
   database: {
+    connectionTimeoutMs: getOptionalEnvVar("DATABASE_CONNECTION_TIMEOUT_MS", 5000, Number),
     dialect: getOptionalEnvVar("DATABASE_DIALECT", "postgresql") as "postgresql" | "sqlite",
     host: getOptionalEnvVar("DATABASE_HOST", "localhost"),
     name: getOptionalEnvVar("DATABASE_NAME", "labeling"),

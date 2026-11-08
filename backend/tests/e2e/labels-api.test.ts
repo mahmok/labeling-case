@@ -12,7 +12,7 @@ const labelsPath = "/api/v1/labels";
 const jsonHeaders = { "content-type": "application/json" };
 
 let container: StartedPostgreSqlContainer | undefined;
-let server: ReturnType<typeof Bun.serve> | undefined;
+let server: Bun.Server<undefined> | undefined;
 let closeDatabase: () => Promise<void> = async () => {};
 let origin: string;
 let useCases: ApplicationUseCases;

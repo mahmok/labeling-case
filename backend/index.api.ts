@@ -6,7 +6,7 @@ import { logger } from "./src/logger";
 void (async () => {
   logger.info({ msg: "starting API server...", port: config.api.port });
   const application = await createApplication();
-  const api = createApi(application.useCases);
+  const api = createApi(application.useCases, application.db.ping);
 
   const server = Bun.serve({
     fetch: api.fetch,

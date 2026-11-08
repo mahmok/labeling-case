@@ -7,7 +7,7 @@ import { type ApplicationUseCases, createApplication } from "../../src/applicati
 import { config } from "../../src/config.ts";
 
 let container: StartedPostgreSqlContainer | undefined;
-let server: ReturnType<typeof Bun.serve> | undefined;
+let server: Bun.Server<undefined> | undefined;
 let closeDatabase: () => Promise<void> = async () => {};
 let useCases: ApplicationUseCases;
 let origin: string;

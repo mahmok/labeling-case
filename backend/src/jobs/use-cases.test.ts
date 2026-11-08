@@ -4,7 +4,7 @@ import { createDatabase } from "../db";
 import { err, ok } from "../utils/result.ts";
 import type { Job } from "./domain.ts";
 import { fromDialect } from "./repository";
-import type { CreateJobInput } from "./repository/interface.ts";
+import type { CreateJobInput, GetJobsInput } from "./repository/interface.ts";
 import { createJobUseCases, type JobsUseCases } from "./use-cases.ts";
 import { createScheduleRunner, runScheduledJob, startJobsWorker, startPendingApiJobs } from "./worker.ts";
 
@@ -149,7 +149,7 @@ describe("Job use cases", () => {
     });
     const workerUseCases = {
       ...useCases,
-      getJobs: async (input: Parameters<JobsUseCases["getJobs"]>[0]) => {
+      getJobs: async (input: GetJobsInput) => {
         const result = await useCases.getJobs(input);
         if (input.triggeredBy?.includes("api")) markInitialPollComplete?.();
         return result;

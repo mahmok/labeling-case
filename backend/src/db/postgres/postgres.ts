@@ -1,9 +1,13 @@
-import { drizzle } from "drizzle-orm/node-postgres";
+import type { ExtractTablesWithRelations } from "drizzle-orm";
+import { drizzle, type NodePgQueryResultHKT } from "drizzle-orm/node-postgres";
+import type { PgTransaction } from "drizzle-orm/pg-core";
 import { Pool } from "pg";
 import { config } from "../../config.ts";
+import { logger } from "../../logger";
 import schema from "./schema.ts";
 
 const pool = new Pool({
+  connectionTimeoutMillis: config.database.connectionTimeoutMs,
   database: config.database.name,
   host: config.database.host,
   password: config.database.password,
@@ -11,7 +15,17 @@ const pool = new Pool({
   user: config.database.user,
 });
 
+pool.on("error", (error: Error) => {
+  logger.error({ error, msg: "Idle PostgreSQL client error" });
+});
+
 export const db = drizzle(pool, { schema });
 export const close = (): Promise<void> => pool.end();
 
-export type PostgresTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+type PostgresSchema = typeof schema;
+
+export type PostgresTransaction = PgTransaction<
+  NodePgQueryResultHKT,
+  PostgresSchema,
+  ExtractTablesWithRelations<PostgresSchema>
+>;
