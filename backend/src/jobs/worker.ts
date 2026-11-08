@@ -23,6 +23,7 @@ type ScheduleRunner = {
 };
 
 const API_JOB_POLL_INTERVAL_MS = 1_000;
+const QUEUED_JOB_SOURCES = ["api", "cli"] as const;
 
 const retryDelay = (attempt: number, policy: RetryPolicyConfig): number =>
   Math.min(policy.maxDelayMs, policy.initialDelayMs * policy.multiplier ** (attempt - 1));
@@ -182,7 +183,7 @@ export const startPendingApiJobs = async (
     const pending = await useCases.getJobs({
       pagination: { limit: 1, offset: 0 },
       status: ["pending"],
-      triggeredBy: ["api"],
+      triggeredBy: [...QUEUED_JOB_SOURCES],
       type: [schedule.type],
     });
     if (!pending.isOk) {

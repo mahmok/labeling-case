@@ -16,7 +16,7 @@ const pool = new Pool({
 });
 
 pool.on("error", (error: Error) => {
-  logger.error({ error, msg: "Idle PostgreSQL client error" });
+  logger.error({ error: error.message, msg: "Idle PostgreSQL client error" });
 });
 
 export const db = drizzle(pool, { schema });

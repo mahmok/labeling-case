@@ -197,6 +197,50 @@ describe("Print use cases", () => {
     expect(await useCases.getPrints({ printerName: [printerName] })).toEqual({ isOk: true, value: [] });
   });
 
+  test("print prefers the local printer and only falls back to the vendor when it is not cached", async () => {
+    const label = await createLabel();
+    const cached = await createPrinter();
+    const vendorOnlyName = `Vendor only ${crypto.randomUUID()}`;
+    useCases = createPrintsUseCases({
+      client: MockClient,
+      getLabelByIdFromVendor: getLocalLabel,
+      getLabelByIdLocally: getLocalLabel,
+      getPrinterByNameFromVendor: async (name: string) => ok({ id: null, name }),
+      getPrinterByNameLocally: getLocalPrinter,
+      repository: SQLitePrintsRepository,
+      uow: unitOfWork,
+    });
+
+    const local = await useCases.print({ labelId: label.id, printerName: cached.name, triggeredBy: "cli" });
+    const vendor = await useCases.print({ labelId: label.id, printerName: vendorOnlyName, triggeredBy: "cli" });
+
+    expect(local).toMatchObject({ isOk: true, value: { printer: cached } });
+    expect(vendor).toMatchObject({ isOk: true, value: { printer: { id: null, name: vendorOnlyName } } });
+  });
+
+  test("print does not fall back to the vendor for errors other than not found", async () => {
+    const label = await createLabel();
+    let vendorLookups = 0;
+    useCases = createPrintsUseCases({
+      client: MockClient,
+      getLabelByIdFromVendor: getLocalLabel,
+      getLabelByIdLocally: getLocalLabel,
+      getPrinterByNameFromVendor: async (name: string) => {
+        vendorLookups += 1;
+        return ok({ id: null, name });
+      },
+      getPrinterByNameLocally: async () => err(new Error("database unavailable")),
+      repository: SQLitePrintsRepository,
+      uow: unitOfWork,
+    });
+
+    const result = await useCases.print({ labelId: label.id, printerName: "Any printer", triggeredBy: "cli" });
+
+    expect(result.isOk).toBe(false);
+    if (!result.isOk) expect(result.error.message).toBe("database unavailable");
+    expect(vendorLookups).toBe(0);
+  });
+
   test("print use cases send the request to the vendor client", async () => {
     const label = await createLabel();
     const printer = await createPrinter();

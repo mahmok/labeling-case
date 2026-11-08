@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@bunli/core": "^0.9.1",
     "@libsql/client": "^0.18.0",
     "drizzle-orm": "^0.45.4",
     "hono": "^4.13.16",
@@ -18,6 +19,7 @@
   "private": true,
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json",
+    "cli": "bun run index.cli.ts",
     "db:generate": "drizzle-kit generate --config=src/db/drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config=src/db/drizzle.config.ts",
     "db:migrate:runtime": "bun run migrate.ts",
@@ -27,7 +29,7 @@
     "lint": "biome check src tests",
     "start:api": "bun run index.api.ts",
     "start:worker": "bun run index.worker.ts",
-    "test": "bun test --isolate",
+    "test": "bun run test:unit && bun run test:integration && bun run test:e2e",
     "test:e2e": "bun test --isolate tests/e2e",
     "test:integration": "bun test --isolate tests/integration",
     "test:unit": "bun test src",

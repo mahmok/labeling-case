@@ -138,6 +138,30 @@ describe("Job use cases", () => {
     });
   });
 
+  test("starts a pending CLI-triggered job the same way as an API-triggered one", async () => {
+    await createJob({ triggeredBy: "cli", type: "sync-labels" });
+    let runCount = 0;
+    const schedule = {
+      cron: "0 0 * * *",
+      retry: { initialDelayMs: 0, maxAttempts: 1, maxDelayMs: 0, multiplier: 1 },
+      run: async () => {
+        runCount += 1;
+        return ok({ synced: 1 });
+      },
+      runOnStartup: false,
+      type: "sync-labels",
+    };
+
+    const executions = await startPendingApiJobs(useCases, [schedule], createScheduleRunner(useCases));
+    await Promise.all(executions);
+
+    expect(runCount).toBe(1);
+    expect(await useCases.getJobs({ type: ["sync-labels"] })).toMatchObject({
+      isOk: true,
+      value: [{ status: "completed", triggeredBy: "cli" }],
+    });
+  });
+
   test("polls for API-triggered work added after the worker starts", async () => {
     let markRunStarted: (() => void) | undefined;
     const runStarted = new Promise<void>((resolve) => {

@@ -151,12 +151,7 @@ export const createPrintsApi = (useCases: PrintsUseCases): Hono => {
     async (c) => {
       const { labelId, printerName } = c.req.valid("json");
       const input = { labelId, printerName, triggeredBy: "api" };
-      const localResult = await useCases.printWithLocalLookup(input);
-      const result =
-        !localResult.isOk && isNotFoundError(localResult.error)
-          ? await useCases.printWithVendorLookup(input)
-          : localResult;
-      return c.json({ data: unwrap(result) }, 201);
+      return c.json({ data: unwrap(await useCases.print(input)) }, 201);
     },
   );
 

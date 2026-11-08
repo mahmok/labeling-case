@@ -31,6 +31,7 @@ export interface Config {
     workerPort: number;
   };
   logger: {
+    destination: "stdout" | "stderr";
     level: string;
   };
 }
@@ -113,6 +114,7 @@ export const config: Config = {
     workerPort: getOptionalEnvVar("JOBS_WORKER_PORT", 3001, Number),
   },
   logger: {
+    destination: getOptionalEnvVar("LOG_DESTINATION", "stdout") as "stdout" | "stderr",
     level: getOptionalEnvVar("LOG_LEVEL", "debug"),
   },
 };

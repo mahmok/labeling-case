@@ -25,6 +25,7 @@ export type PrintInput = {
 };
 
 export type PrintsUseCases = {
+  print: (input: PrintInput) => Promise<Result<Print, Error>>;
   printWithLocalLookup: (input: PrintInput) => Promise<Result<Print, Error>>;
   printWithVendorLookup: (input: PrintInput) => Promise<Result<Print, Error>>;
   backfillPrints: () => Promise<Result<Print[], Error>>;
@@ -191,10 +192,19 @@ const backfillPrints =
     return uow.execute((tx) => repository.updatePrinterIds(updates, tx));
   };
 
+const print =
+  <T>(deps: Dependencies<T>) =>
+  async (input: PrintInput): Promise<Result<Print, Error>> => {
+    const local = await printWithLocalLookup(deps)(input);
+    if (local.isOk || !isNotFoundError(local.error)) return local;
+    return printWithVendorLookup(deps)(input);
+  };
+
 export const createPrintsUseCases = <T>(deps: Dependencies<T>): PrintsUseCases => ({
   backfillPrints: backfillPrints(deps),
   getPrint: getPrint(deps),
   getPrints: getPrints(deps),
+  print: print(deps),
   printWithLocalLookup: printWithLocalLookup(deps),
   printWithVendorLookup: printWithVendorLookup(deps),
 });
