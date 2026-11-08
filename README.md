@@ -42,6 +42,13 @@ bun run --filter backend test
 
 Integration and end-to-end tests use Testcontainers; see [`backend/tests/README.md`](backend/tests/README.md).
 
+## Documentation
+
+- [Tech stack](doc/tech-stack.md): high-level view of the technologies used and what each is for
+- [Backend architecture](doc/backend-architecture.md): conceptual and concrete views of the backend structure
+- [Design principles](doc/design-principles.md): the main design decisions behind the system
+- [AWS deployment options](doc/deployment.md): ways to deploy to AWS, with diagrams
+
 ## Reference
 
 - Root and backend scripts: [`package.json`](package.json), [`backend/package.json`](backend/package.json)
